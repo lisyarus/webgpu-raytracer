@@ -30,6 +30,12 @@ Application::Application()
     instanceExtras.backends = WGPUInstanceBackend_Vulkan;
 #endif
 
+    instanceExtras.flags = WGPUInstanceFlag_Default;
+    instanceExtras.dx12ShaderCompiler = WGPUDx12Compiler_Undefined;
+    instanceExtras.gles3MinorVersion = WGPUGles3MinorVersion_Automatic;
+    instanceExtras.dxilPath = nullptr;
+    instanceExtras.dxcPath = nullptr;
+
     WGPUInstanceDescriptor instanceDescriptor;
     instanceDescriptor.nextInChain = (WGPUChainedStruct *)&instanceExtras;
     WGPUInstance instance = wgpuCreateInstance(&instanceDescriptor);

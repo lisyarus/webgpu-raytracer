@@ -1,0 +1,12 @@
+[submodule "glm"]
+	path = glm
+	url = https://github.com/g-truc/glm.git
+	shallow = true
+[submodule "stb"]
+	path = stb
+	url = https://github.com/nothings/stb.git
+	shallow = true
+[submodule "rapidjson"]
+	path = rapidjson
+	url = https://github.com/Tencent/rapidjson.git
+	shallow = true

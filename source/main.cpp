@@ -1,4 +1,5 @@
 #include <webgpu-raytracer/application.hpp>
+#include <webgpu-raytracer/gltf_loader.hpp>
 
 #include <iostream>
 #include <unordered_set>
@@ -6,7 +7,19 @@
 
 int main(int argc, char ** argv) try
 {
+    if (argc != 2)
+    {
+        std::cout << "Usage: " << argv[0] << " <gltf-file>\n";
+        return 0;
+    }
+
     Application application;
+
+    {
+        auto assetPath = std::filesystem::path(argv[1]);
+        auto asset = glTF::load(assetPath);
+        std::cout << "Loaded asset " << assetPath << '\n';
+    }
 
     std::unordered_set<SDL_Scancode> keysDown;
 
