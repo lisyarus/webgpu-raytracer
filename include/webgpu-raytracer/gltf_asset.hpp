@@ -61,6 +61,7 @@ namespace glTF
     {
         float yFov;
         float zNear;
+        std::optional<float> zFar;
     };
 
     struct Image

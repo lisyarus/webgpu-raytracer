@@ -10,10 +10,12 @@ find_package(wgpu-native REQUIRED)
 
 file(GLOB_RECURSE WEBGPU_RAYTRACER_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/source/*")
 file(GLOB_RECURSE WEBGPU_RAYTRACER_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/include/*")
+file(GLOB_RECURSE WEBGPU_RAYTRACER_SHADERS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/*")
 
 add_executable(webgpu-raytracer
 	${WEBGPU_RAYTRACER_HEADERS}
 	${WEBGPU_RAYTRACER_SOURCES}
+	${WEBGPU_RAYTRACER_SHADERS}
 )
 
 target_link_libraries(webgpu-raytracer
@@ -26,6 +28,10 @@ target_include_directories(webgpu-raytracer PUBLIC
 	"${CMAKE_CURRENT_SOURCE_DIR}/glm"
 	"${CMAKE_CURRENT_SOURCE_DIR}/rapidjson/include"
 	"${CMAKE_CURRENT_SOURCE_DIR}/stb"
+)
+
+target_compile_definitions(webgpu-raytracer PUBLIC
+	-DPROJECT_ROOT="${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 target_compile_definitions(webgpu-raytracer PUBLIC

@@ -1,11 +1,15 @@
 #include <webgpu-raytracer/application.hpp>
 #include <webgpu-raytracer/gltf_loader.hpp>
 #include <webgpu-raytracer/scene_data.hpp>
+#include <webgpu-raytracer/camera.hpp>
+#include <webgpu-raytracer/shader_registry.hpp>
 #include <webgpu-raytracer/renderer.hpp>
 
 #include <iostream>
 #include <unordered_set>
 #include <chrono>
+
+static std::filesystem::path const projectRoot = PROJECT_ROOT;
 
 int main(int argc, char ** argv) try
 {
@@ -16,11 +20,22 @@ int main(int argc, char ** argv) try
     }
 
     Application application;
-    Renderer renderer(application.device(), application.queue(), application.surfaceFormat());
+    ShaderRegistry shaderRegistry(projectRoot / "shaders", application.device());
+    Renderer renderer(application.device(), application.queue(), application.surfaceFormat(), shaderRegistry);
 
     auto assetPath = std::filesystem::path(argv[1]);
     auto asset = glTF::load(assetPath);
     std::cout << "Loaded asset " << assetPath << '\n';
+
+    std::vector<std::uint32_t> cameraNodes;
+    for (std::uint32_t i = 0; i < asset.nodes.size(); ++i)
+        if (asset.nodes[i].camera)
+            cameraNodes.push_back(i);
+
+    Camera camera;
+    if (!cameraNodes.empty())
+        camera = Camera(asset, asset.nodes[cameraNodes.front()]);
+    camera.setAspectRatio(application.width() * 1.f / application.height());
 
     SceneData sceneData(asset, application.device(), application.queue());
 
@@ -45,6 +60,7 @@ int main(int argc, char ** argv) try
             {
             case SDL_WINDOWEVENT_RESIZED:
                 application.resize(event->window.data1, event->window.data2, false);
+                camera.setAspectRatio(application.width() * 1.f / application.height());
                 resized = true;
                 break;
             }
@@ -70,7 +86,7 @@ int main(int argc, char ** argv) try
         float const dt = std::chrono::duration_cast<std::chrono::duration<float>>(thisFrameStart - lastFrameStart).count();
         lastFrameStart = thisFrameStart;
 
-        renderer.renderFrame(surfaceTexture);
+        renderer.renderFrame(surfaceTexture, camera, sceneData);
         application.present();
 
         wgpuTextureRelease(surfaceTexture);

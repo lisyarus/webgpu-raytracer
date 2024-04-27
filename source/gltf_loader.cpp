@@ -21,7 +21,7 @@ namespace glTF
             auto const bufferPath = assetPath.parent_path() / bufferUri;
 
             std::vector<char> result;
-            result.reserve(std::filesystem::file_size(bufferPath));
+            result.resize(std::filesystem::file_size(bufferPath));
 
             std::ifstream input(bufferPath, std::ios::binary);
             input.read(result.data(), result.size());
@@ -305,6 +305,8 @@ namespace glTF
                 auto & perspective = cameraIn["perspective"];
                 camera.yFov = perspective["yfov"].GetFloat();
                 camera.zNear = perspective["znear"].GetFloat();
+                if (perspective.HasMember("zfar"))
+                    camera.zFar = perspective["zfar"].GetFloat();
             }
             else
             {

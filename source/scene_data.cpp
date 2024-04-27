@@ -132,6 +132,8 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
     {
         if (!node.mesh) continue;
 
+        glm::mat3 normalMatrix = glm::inverse(glm::transpose(glm::mat3(node.matrix)));
+
         for (auto const & primitive : asset.meshes[*node.mesh].primitives)
         {
             if (primitive.mode != glTF::Primitive::Mode::Triangles)
@@ -180,6 +182,14 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
                 readNormals(asset, *normalAccessor, vertices, baseVertex);
             else
                 reconstructNormals(vertices, indices, baseVertex, baseIndex, positionAccessor->count, indexAccessor ? indexAccessor->count : positionAccessor->count);
+
+            for (std::uint32_t i = 0; i < positionAccessor->count; ++i)
+            {
+                auto & v = vertices[baseVertex + i];
+
+                v.position = glm::vec3(node.matrix * glm::vec4(v.position, 1.f));
+                v.normal = glm::normalize(normalMatrix * v.normal);
+            }
         }
     }
 
@@ -202,4 +212,12 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
 
     indexBuffer_ = wgpuDeviceCreateBuffer(device, &indexBufferDescriptor);
     wgpuQueueWriteBuffer(queue, indexBuffer_, 0, indices.data(), indexBufferDescriptor.size);
+
+    indexCount_ = indices.size();
+}
+
+SceneData::~SceneData()
+{
+    wgpuBufferRelease(indexBuffer_);
+    wgpuBufferRelease(vertexBuffer_);
 }
