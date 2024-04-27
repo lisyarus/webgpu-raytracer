@@ -13,6 +13,42 @@
 namespace glTF
 {
 
+    namespace
+    {
+
+        std::vector<char> loadBuffer(std::filesystem::path const & assetPath, std::string const & bufferUri)
+        {
+            auto const bufferPath = assetPath.parent_path() / bufferUri;
+
+            std::vector<char> result;
+            result.reserve(std::filesystem::file_size(bufferPath));
+
+            std::ifstream input(bufferPath, std::ios::binary);
+            input.read(result.data(), result.size());
+
+            return result;
+        }
+
+        Image loadImage(std::filesystem::path const & assetPath, std::string const & uri)
+        {
+            auto imagePath = assetPath.parent_path() / uri;
+
+            Image result;
+            result.uri = uri;
+
+            int channels;
+            auto pixels = stbi_load(imagePath.c_str(), (int *)&result.width, (int *)&result.height, &channels, 4);
+
+            result.data.resize(result.width * result.height);
+            std::copy(pixels, pixels + result.width * result.height * 4, result.data.data());
+
+            stbi_image_free(pixels);
+
+            return result;
+        }
+
+    }
+
     Asset load(std::filesystem::path const & path)
     {
         std::ifstream input(path);
@@ -184,7 +220,7 @@ namespace glTF
         for (auto const & imageIn : document["images"].GetArray())
         {
             auto & image = result.images.emplace_back();
-            image.uri = imageIn["uri"].GetString();
+            image = loadImage(path, imageIn["uri"].GetString());
         }
 
         if (document.HasMember("textures"))
@@ -256,62 +292,29 @@ namespace glTF
             auto & buffer = result.buffers.emplace_back();
 
             buffer.uri = bufferIn["uri"].GetString();
-            buffer.byteLength = bufferIn["byteLength"].GetUint();
+            buffer.data = loadBuffer(path, buffer.uri);
         }
 
         if (document.HasMember("cameras"))
-            for (auto const & cameraIn : document["cameras"].GetArray())
+        for (auto const & cameraIn : document["cameras"].GetArray())
+        {
+            auto & camera = result.cameras.emplace_back();
+
+            if (cameraIn.HasMember("perspective"))
             {
-                auto & camera = result.cameras.emplace_back();
-
-                if (cameraIn.HasMember("perspective"))
-                {
-                    auto & perspective = cameraIn["perspective"];
-                    camera.yFov = perspective["yfov"].GetFloat();
-                    camera.zNear = perspective["znear"].GetFloat();
-                }
-                else
-                {
-                    std::cout << "Warning: non-perspective cameras are not supported\n";
-                    camera.yFov = glm::radians(90.f);
-                    camera.zNear = 0.01f;
-                }
+                auto & perspective = cameraIn["perspective"];
+                camera.yFov = perspective["yfov"].GetFloat();
+                camera.zNear = perspective["znear"].GetFloat();
             }
+            else
+            {
+                std::cout << "Warning: non-perspective cameras are not supported\n";
+                camera.yFov = glm::radians(90.f);
+                camera.zNear = 0.01f;
+            }
+        }
 
         return result;
-    }
-
-    std::vector<char> loadBuffer(std::filesystem::path const & assetPath, std::string const & bufferUri)
-    {
-        auto const bufferPath = assetPath.parent_path() / bufferUri;
-
-        std::vector<char> result;
-        result.reserve(std::filesystem::file_size(bufferPath));
-
-        std::ifstream input(bufferPath, std::ios::binary);
-        input.read(result.data(), result.size());
-
-        return result;
-    }
-
-    ImageInfo loadImage(std::filesystem::path const & imagePath)
-    {
-        ImageInfo result;
-
-        int channels;
-        auto pixels = stbi_load(imagePath.c_str(), (int *)&result.width, (int *)&result.height, &channels, 4);
-
-        result.data.resize(result.width * result.height);
-        std::copy(pixels, pixels + result.width * result.height * 4, result.data.data());
-
-        stbi_image_free(pixels);
-
-        return result;
-    }
-
-    ImageInfo loadImage(std::filesystem::path const & assetPath, std::string const & imageUri)
-    {
-        return loadImage(assetPath.parent_path() / imageUri);
     }
 
 }

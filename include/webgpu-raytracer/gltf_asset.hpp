@@ -14,7 +14,7 @@ namespace glTF
     struct Buffer
     {
         std::string uri;
-        std::uint32_t byteLength;
+        std::vector<char> data;
     };
 
     struct BufferView
@@ -66,6 +66,9 @@ namespace glTF
     struct Image
     {
         std::string uri;
+        std::uint32_t width;
+        std::uint32_t height;
+        std::vector<std::uint32_t> data;
     };
 
     struct Texture

@@ -1,5 +1,6 @@
 #include <webgpu-raytracer/application.hpp>
 #include <webgpu-raytracer/gltf_loader.hpp>
+#include <webgpu-raytracer/scene_data.hpp>
 #include <webgpu-raytracer/renderer.hpp>
 
 #include <iostream>
@@ -17,11 +18,11 @@ int main(int argc, char ** argv) try
     Application application;
     Renderer renderer(application.device(), application.queue(), application.surfaceFormat());
 
-    {
-        auto assetPath = std::filesystem::path(argv[1]);
-        auto asset = glTF::load(assetPath);
-        std::cout << "Loaded asset " << assetPath << '\n';
-    }
+    auto assetPath = std::filesystem::path(argv[1]);
+    auto asset = glTF::load(assetPath);
+    std::cout << "Loaded asset " << assetPath << '\n';
+
+    SceneData sceneData(asset, application.device(), application.queue());
 
     std::unordered_set<SDL_Scancode> keysDown;
 
