@@ -1,5 +1,6 @@
 #include <webgpu-raytracer/application.hpp>
 #include <webgpu-raytracer/gltf_loader.hpp>
+#include <webgpu-raytracer/renderer.hpp>
 
 #include <iostream>
 #include <unordered_set>
@@ -14,6 +15,7 @@ int main(int argc, char ** argv) try
     }
 
     Application application;
+    Renderer renderer(application.device(), application.queue(), application.surfaceFormat());
 
     {
         auto assetPath = std::filesystem::path(argv[1]);
@@ -67,6 +69,7 @@ int main(int argc, char ** argv) try
         float const dt = std::chrono::duration_cast<std::chrono::duration<float>>(thisFrameStart - lastFrameStart).count();
         lastFrameStart = thisFrameStart;
 
+        renderer.renderFrame(surfaceTexture);
         application.present();
 
         wgpuTextureRelease(surfaceTexture);
