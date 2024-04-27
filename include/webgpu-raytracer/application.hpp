@@ -39,6 +39,8 @@ struct Application
     // Must be called after rendering each frame
     void present();
 
+    void setMouseHidden(bool hidden);
+
     std::optional<SDL_Event> poll();
 
 private:

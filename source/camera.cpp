@@ -2,6 +2,7 @@
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/transform.hpp>
+#include <glm/gtx/rotate_vector.hpp>
 #include <glm/ext.hpp>
 
 namespace
@@ -51,6 +52,34 @@ Camera::Camera(glTF::Asset const & asset, glTF::Node const & node)
 void Camera::setAspectRatio(float aspectRatio)
 {
     aspectRatio_ = aspectRatio;
+}
+
+void Camera::rotateX(float angle)
+{
+    axisX_ = glm::rotate(axisX_, -angle, axisY_);
+    axisZ_ = glm::rotate(axisZ_, -angle, axisY_);
+}
+
+void Camera::rotateY(float angle)
+{
+    axisY_ = glm::rotate(axisY_, -angle, axisX_);
+    axisZ_ = glm::rotate(axisZ_, -angle, axisX_);
+}
+
+void Camera::rotateZ(float angle)
+{
+    axisX_ = glm::rotate(axisX_, -angle, axisZ_);
+    axisY_ = glm::rotate(axisY_, -angle, axisZ_);
+}
+
+void Camera::moveForward(float distance)
+{
+    position_ -= distance * axisZ_;
+}
+
+void Camera::moveRight(float distance)
+{
+    position_ += distance * axisX_;
 }
 
 glm::mat4 Camera::viewProjectionMatrix() const

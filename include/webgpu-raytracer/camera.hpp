@@ -12,6 +12,13 @@ struct Camera
 
     void setAspectRatio(float aspectRatio);
 
+    void rotateX(float angle);
+    void rotateY(float angle);
+    void rotateZ(float angle);
+
+    void moveForward(float distance);
+    void moveRight(float distance);
+
     glm::mat4 viewProjectionMatrix() const;
 
 private:

@@ -14,7 +14,6 @@ Application::Application()
     SDL_Init(SDL_INIT_VIDEO);
 
     window_ = SDL_CreateWindow("WebGPU Demo", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width_, height_, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_FULLSCREEN_DESKTOP);
-    SDL_SetRelativeMouseMode(SDL_TRUE);
 
     // Create WebGPU instance
 
@@ -250,6 +249,14 @@ void Application::resize(int width, int height, bool vsync)
 void Application::present()
 {
     wgpuSurfacePresent(surface_);
+}
+
+void Application::setMouseHidden(bool hidden)
+{
+    if (hidden)
+        SDL_SetRelativeMouseMode(SDL_TRUE);
+    else
+        SDL_SetRelativeMouseMode(SDL_FALSE);
 }
 
 std::optional<SDL_Event> Application::poll()

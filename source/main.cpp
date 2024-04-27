@@ -44,6 +44,8 @@ int main(int argc, char ** argv) try
     int frameId = 0;
     double time = 0.0;
 
+    bool leftMouseButtonDown = false;
+
     auto lastFrameStart = std::chrono::high_resolution_clock::now();
 
     for (bool running = true; running;)
@@ -65,7 +67,27 @@ int main(int argc, char ** argv) try
                 break;
             }
             break;
+        case SDL_MOUSEBUTTONDOWN:
+            if (event->button.button == SDL_BUTTON_LEFT)
+            {
+                leftMouseButtonDown = true;
+                application.setMouseHidden(true);
+            }
+            break;
+        case SDL_MOUSEBUTTONUP:
+            if (event->button.button == SDL_BUTTON_LEFT)
+            {
+                leftMouseButtonDown = false;
+                application.setMouseHidden(false);
+            }
+            break;
         case SDL_MOUSEMOTION:
+            if (leftMouseButtonDown)
+            {
+                float speed = 2.f / application.height();
+                camera.rotateX(event->motion.xrel * speed);
+                camera.rotateY(event->motion.yrel * speed);
+            }
             break;
         case SDL_KEYDOWN:
             keysDown.insert(event->key.keysym.scancode);
@@ -85,6 +107,28 @@ int main(int argc, char ** argv) try
         auto thisFrameStart = std::chrono::high_resolution_clock::now();
         float const dt = std::chrono::duration_cast<std::chrono::duration<float>>(thisFrameStart - lastFrameStart).count();
         lastFrameStart = thisFrameStart;
+
+        time += dt;
+
+        {
+            float rotationSpeed = 1.f;
+            float movementSpeed = 10.f; // TODO: select based on scene size
+
+            if (keysDown.contains(SDL_SCANCODE_Q))
+                camera.rotateZ(- rotationSpeed * dt);
+            if (keysDown.contains(SDL_SCANCODE_E))
+                camera.rotateZ(  rotationSpeed * dt);
+
+            if (keysDown.contains(SDL_SCANCODE_S))
+                camera.moveForward(- movementSpeed * dt);
+            if (keysDown.contains(SDL_SCANCODE_W))
+                camera.moveForward(  movementSpeed * dt);
+
+            if (keysDown.contains(SDL_SCANCODE_A))
+                camera.moveRight(- movementSpeed * dt);
+            if (keysDown.contains(SDL_SCANCODE_D))
+                camera.moveRight(  movementSpeed * dt);
+        }
 
         renderer.renderFrame(surfaceTexture, camera, sceneData);
         application.present();
