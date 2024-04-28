@@ -32,13 +32,15 @@ private:
 
     WGPUTexture accumulationTexture_ = nullptr;
     WGPUTextureView accumulationTextureView_ = nullptr;
-    WGPUBindGroup accumulationBindGroup_ = nullptr;
+    WGPUBindGroup accumulationStorageBindGroup_ = nullptr;
+    WGPUBindGroup accumulationSampleBindGroup_ = nullptr;
 
     CameraBindGroup camera_;
 
     WGPUBindGroupLayout geometryBindGroupLayout_;
     WGPUBindGroupLayout materialBindGroupLayout_;
-    WGPUBindGroupLayout accumulationBindGroupLayout_;
+    WGPUBindGroupLayout accumulationStorageBindGroupLayout_;
+    WGPUBindGroupLayout accumulationSampleBindGroupLayout_;
 
     PreviewPipeline previewPipeline_;
     RaytraceFirstHitPipeline raytraceFirstHitPipeline_;
@@ -51,6 +53,8 @@ private:
     std::uint32_t frameID_ = 0;
 };
 
+static WGPUTextureFormat accumulationTextureFormat = WGPUTextureFormat_RGBA32Float;
+
 Renderer::Impl::Impl(WGPUDevice device, WGPUQueue queue, WGPUTextureFormat surfaceFormat, ShaderRegistry & shaderRegistry)
     : device_(device)
     , queue_(queue)
@@ -58,21 +62,26 @@ Renderer::Impl::Impl(WGPUDevice device, WGPUQueue queue, WGPUTextureFormat surfa
     , camera_(device)
     , geometryBindGroupLayout_(createGeometryBindGroupLayout(device))
     , materialBindGroupLayout_(createMaterialBindGroupLayout(device))
-    , accumulationBindGroupLayout_(createAccumulationBindGroupLayout(device))
+    , accumulationStorageBindGroupLayout_(createAccumulationStorageBindGroupLayout(device, accumulationTextureFormat))
+    , accumulationSampleBindGroupLayout_(createAccumulationSampleBindGroupLayout(device))
     , previewPipeline_(device, shaderRegistry, surfaceFormat, camera_.bindGroupLayout(), materialBindGroupLayout_)
-    , raytraceFirstHitPipeline_(device, shaderRegistry, WGPUTextureFormat_RGBA16Float, camera_.bindGroupLayout(), geometryBindGroupLayout_, materialBindGroupLayout_)
-    , raytraceMonteCarloPipeline_(device, shaderRegistry, WGPUTextureFormat_RGBA16Float, camera_.bindGroupLayout(), geometryBindGroupLayout_, materialBindGroupLayout_)
-    , composePipeline_(device, shaderRegistry, surfaceFormat, accumulationBindGroupLayout_)
+    , raytraceFirstHitPipeline_(device, shaderRegistry, accumulationTextureFormat, camera_.bindGroupLayout(), geometryBindGroupLayout_, materialBindGroupLayout_)
+    , raytraceMonteCarloPipeline_(device, shaderRegistry, camera_.bindGroupLayout(), geometryBindGroupLayout_, materialBindGroupLayout_, accumulationStorageBindGroupLayout_)
+    , composePipeline_(device, shaderRegistry, surfaceFormat, accumulationSampleBindGroupLayout_)
 {}
 
 Renderer::Impl::~Impl()
 {
-    wgpuBindGroupLayoutRelease(accumulationBindGroupLayout_);
+    wgpuBindGroupLayoutRelease(accumulationSampleBindGroupLayout_);
+    wgpuBindGroupLayoutRelease(accumulationStorageBindGroupLayout_);
     wgpuBindGroupLayoutRelease(materialBindGroupLayout_);
     wgpuBindGroupLayoutRelease(geometryBindGroupLayout_);
 
-    if (accumulationBindGroup_)
-        wgpuBindGroupRelease(accumulationBindGroup_);
+    if (accumulationStorageBindGroup_)
+        wgpuBindGroupRelease(accumulationStorageBindGroup_);
+
+    if (accumulationSampleBindGroup_)
+        wgpuBindGroupRelease(accumulationSampleBindGroup_);
 
     if (accumulationTexture_)
     {
@@ -137,10 +146,10 @@ namespace
         WGPUTextureDescriptor accumulationTextureDescriptor;
         accumulationTextureDescriptor.nextInChain = nullptr;
         accumulationTextureDescriptor.label = "accumulation";
-        accumulationTextureDescriptor.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding;
+        accumulationTextureDescriptor.usage = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_StorageBinding;
         accumulationTextureDescriptor.dimension = WGPUTextureDimension_2D;
         accumulationTextureDescriptor.size = {width, height, 1};
-        accumulationTextureDescriptor.format = WGPUTextureFormat_RGBA16Float;
+        accumulationTextureDescriptor.format = accumulationTextureFormat;
         accumulationTextureDescriptor.mipLevelCount = 1;
         accumulationTextureDescriptor.sampleCount = 1;
         accumulationTextureDescriptor.viewFormatCount = 0;
@@ -151,7 +160,7 @@ namespace
         WGPUTextureViewDescriptor accumulationTextureViewDescriptor;
         accumulationTextureViewDescriptor.nextInChain = nullptr;
         accumulationTextureViewDescriptor.label = "accumulation";
-        accumulationTextureViewDescriptor.format = WGPUTextureFormat_RGBA16Float;
+        accumulationTextureViewDescriptor.format = accumulationTextureFormat;
         accumulationTextureViewDescriptor.dimension = WGPUTextureViewDimension_2D;
         accumulationTextureViewDescriptor.baseMipLevel = 0;
         accumulationTextureViewDescriptor.mipLevelCount = 1;
@@ -168,10 +177,9 @@ namespace
 
 void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData)
 {
-    std::uint32_t surfaceWidth = wgpuTextureGetWidth(surfaceTexture);
-    std::uint32_t surfaceHeight = wgpuTextureGetHeight(surfaceTexture);
+    glm::uvec2 const screenSize{wgpuTextureGetWidth(surfaceTexture), wgpuTextureGetHeight(surfaceTexture)};
 
-    camera_.update(queue_, camera, {surfaceWidth, surfaceHeight}, frameID_);
+    camera_.update(queue_, camera, screenSize, frameID_);
 
     WGPUCommandEncoderDescriptor commandEncoderDescriptor;
     commandEncoderDescriptor.nextInChain = nullptr;
@@ -194,7 +202,7 @@ void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & came
 
     if (renderMode_ == Mode::Preview)
     {
-        if (!depthTexture_ || wgpuTextureGetWidth(depthTexture_) != surfaceWidth || wgpuTextureGetHeight(depthTexture_) != surfaceHeight)
+        if (!depthTexture_ || wgpuTextureGetWidth(depthTexture_) != screenSize.x || wgpuTextureGetHeight(depthTexture_) != screenSize.y)
         {
             if (depthTexture_)
             {
@@ -202,14 +210,14 @@ void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & came
                 wgpuTextureRelease(depthTexture_);
             }
 
-            std::tie(depthTexture_, depthTextureView_) = recreateDepthTexture(device_, surfaceWidth, surfaceHeight);
+            std::tie(depthTexture_, depthTextureView_) = recreateDepthTexture(device_, screenSize.x, screenSize.y);
         }
 
         renderPreview(commandEncoder, surfaceTextureView, depthTextureView_, previewPipeline_.renderPipeline(), camera_.bindGroup(), sceneData);
     }
     else
     {
-        if (!accumulationTexture_ || wgpuTextureGetWidth(accumulationTexture_) != surfaceWidth || wgpuTextureGetHeight(accumulationTexture_) != surfaceHeight)
+        if (!accumulationTexture_ || wgpuTextureGetWidth(accumulationTexture_) != screenSize.x || wgpuTextureGetHeight(accumulationTexture_) != screenSize.y)
         {
             if (accumulationTexture_)
             {
@@ -217,22 +225,26 @@ void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & came
                 wgpuTextureRelease(accumulationTexture_);
             }
 
-            std::tie(accumulationTexture_, accumulationTextureView_) = recreateAccumulationTexture(device_, surfaceWidth, surfaceHeight);
+            std::tie(accumulationTexture_, accumulationTextureView_) = recreateAccumulationTexture(device_, screenSize.x, screenSize.y);
 
-            if (accumulationBindGroup_)
-                wgpuBindGroupRelease(accumulationBindGroup_);
+            if (accumulationStorageBindGroup_)
+                wgpuBindGroupRelease(accumulationStorageBindGroup_);
 
-            accumulationBindGroup_ = createAccumulationBindGroup(device_, accumulationBindGroupLayout_, accumulationTextureView_);
+            if (accumulationSampleBindGroup_)
+                wgpuBindGroupRelease(accumulationSampleBindGroup_);
+
+            accumulationSampleBindGroup_ = createAccumulationSampleBindGroup(device_, accumulationSampleBindGroupLayout_, accumulationTextureView_);
+            accumulationStorageBindGroup_ = createAccumulationStorageBindGroup(device_, accumulationStorageBindGroupLayout_, accumulationTextureView_);
         }
 
         if (renderMode_ == Mode::RaytraceFirstHit)
             renderRaytraceFirstHit(commandEncoder, accumulationTextureView_, needClearAccumulationTexture_,
                 raytraceFirstHitPipeline_.renderPipeline(), camera_.bindGroup(), sceneData);
         else if (renderMode_ == Mode::RaytraceMonteCarlo)
-            renderRaytraceMonteCarlo(commandEncoder, accumulationTextureView_, needClearAccumulationTexture_,
-                raytraceMonteCarloPipeline_.renderPipeline(), camera_.bindGroup(), sceneData);
+            renderRaytraceMonteCarlo(commandEncoder, accumulationTextureView_, raytraceMonteCarloPipeline_.pipeline(),
+                camera_.bindGroup(), sceneData, accumulationStorageBindGroup_, screenSize);
 
-        renderCompose(commandEncoder, surfaceTextureView, composePipeline_.renderPipeline(), accumulationBindGroup_);
+        renderCompose(commandEncoder, surfaceTextureView, composePipeline_.renderPipeline(), accumulationSampleBindGroup_);
 
         needClearAccumulationTexture_ = false;
     }

@@ -2,6 +2,8 @@
 
 #include <webgpu.h>
 
-WGPUBindGroupLayout createAccumulationBindGroupLayout(WGPUDevice device);
+WGPUBindGroupLayout createAccumulationSampleBindGroupLayout(WGPUDevice device);
+WGPUBindGroupLayout createAccumulationStorageBindGroupLayout(WGPUDevice device, WGPUTextureFormat textureFormat);
 
-WGPUBindGroup createAccumulationBindGroup(WGPUDevice device, WGPUBindGroupLayout bindGroupLayout, WGPUTextureView accumulationTextureView);
+WGPUBindGroup createAccumulationSampleBindGroup(WGPUDevice device, WGPUBindGroupLayout bindGroupLayout, WGPUTextureView accumulationTextureView);
+WGPUBindGroup createAccumulationStorageBindGroup(WGPUDevice device, WGPUBindGroupLayout bindGroupLayout, WGPUTextureView accumulationTextureView);

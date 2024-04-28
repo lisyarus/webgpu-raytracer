@@ -6,7 +6,7 @@ WGPUBindGroupLayout createGeometryBindGroupLayout(WGPUDevice device)
 
     layoutEntries[0].nextInChain = nullptr;
     layoutEntries[0].binding = 0;
-    layoutEntries[0].visibility = WGPUShaderStage_Fragment;
+    layoutEntries[0].visibility = WGPUShaderStage_Fragment | WGPUShaderStage_Compute;
     layoutEntries[0].buffer.nextInChain = nullptr;
     layoutEntries[0].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
     layoutEntries[0].buffer.hasDynamicOffset = false;
@@ -24,7 +24,7 @@ WGPUBindGroupLayout createGeometryBindGroupLayout(WGPUDevice device)
 
     layoutEntries[1].nextInChain = nullptr;
     layoutEntries[1].binding = 1;
-    layoutEntries[1].visibility = WGPUShaderStage_Fragment;
+    layoutEntries[1].visibility = WGPUShaderStage_Fragment | WGPUShaderStage_Compute;
     layoutEntries[1].buffer.nextInChain = nullptr;
     layoutEntries[1].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
     layoutEntries[1].buffer.hasDynamicOffset = false;

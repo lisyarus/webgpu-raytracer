@@ -11,6 +11,8 @@ use random.wgsl;
 
 @group(2) @binding(0) var<storage, read> materials : array<Material>;
 
+@group(3) @binding(0) var accumulationTexture : texture_storage_2d<rgba32float, read_write>;
+
 struct SceneIntersection
 {
 	intersects : bool,
@@ -50,6 +52,8 @@ fn intersectScene(ray : Ray) -> SceneIntersection {
 	return result;
 }
 
+const backgroundColor = vec3(0.0);
+
 fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> vec3f {
 	var accumulatedColor = vec3f(0.0);
 	var colorFactor = vec3f(1.0);
@@ -75,6 +79,7 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 			let intersectionPoint = currentRay.origin + currentRay.direction * intersection.distance;
 			currentRay = Ray(intersectionPoint + reflectedDirection * 1e-4, reflectedDirection);
 		} else {
+			accumulatedColor += colorFactor * backgroundColor;
 			break;
 		}
 	}
@@ -82,45 +87,23 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 	return accumulatedColor;
 }
 
-struct VertexOut
-{
-	@builtin(position) position : vec4f,
-	@location(0) screenSpacePosition : vec2f,
-}
-
-@vertex
-fn vertexMain(@builtin(vertex_index) index : u32) -> VertexOut {
-
-	// Hard-coded triangle that encloses the whole screen
-
-	if (index == 0u) {
-		return VertexOut(
-			vec4f(-1.0, -1.0, 0.0, 1.0),
-			vec2f(-1.0, -1.0),
-		);
-	} else if (index == 1u) {
-		return VertexOut(
-			vec4f( 3.0, -1.0, 0.0, 1.0),
-			vec2f( 3.0, -1.0),
-		);
-	} else {
-		return VertexOut(
-			vec4f(-1.0,  3.0, 0.0, 1.0),
-			vec2f(-1.0,  3.0),
-		);
-	}
-}
-
-@fragment
-fn fragmentMain(in : VertexOut) -> @location(0) vec4f {
+@compute @workgroup_size(8, 8)
+fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
 	var randomState = RandomState(0);
-	initRandom(&randomState, u32(in.position.x));
-	initRandom(&randomState, u32(in.position.y));
+	initRandom(&randomState, id.x);
+	initRandom(&randomState, id.y);
 	initRandom(&randomState, camera.frameID);
 
-	let screenPosition = in.screenSpacePosition + vec2f(uniformFloat(&randomState), uniformFloat(&randomState)) / vec2f(camera.screenSize);
+	let screenPosition = 2.0 * vec2f(f32(id.x) + uniformFloat(&randomState), f32(id.y) + uniformFloat(&randomState)) / vec2f(camera.screenSize) - vec2f(1.0);
 
-	let cameraRay = computeCameraRay(camera.viewProjectionInverseMatrix, screenPosition);
+	let cameraRay = computeCameraRay(camera.viewProjectionInverseMatrix, screenPosition * vec2f(1.0, -1.0));
 
-	return vec4f(raytraceMonteCarlo(cameraRay, &randomState), 1.0 / (f32(camera.frameID) + 1.0));
+	let color = raytraceMonteCarlo(cameraRay, &randomState);
+	let alpha = 1.0 / (f32(camera.frameID) + 1.0);
+
+	if (id.x < camera.screenSize.x && id.y < camera.screenSize.y) {
+		let accumulatedColor = textureLoad(accumulationTexture, id.xy);
+		let storedColor = mix(accumulatedColor, vec4f(color, 1.0), alpha);
+		textureStore(accumulationTexture, id.xy, storedColor);
+	}
 }
