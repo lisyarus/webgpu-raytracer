@@ -1,6 +1,6 @@
-#include <webgpu-raytracer/raytrace_first_hit_pipeline.hpp>
+#include <webgpu-raytracer/raytrace_monte_carlo_pipeline.hpp>
 
-RaytraceFirstHitPipeline::RaytraceFirstHitPipeline(WGPUDevice device, ShaderRegistry & shaderRegistry, WGPUTextureFormat surfaceFormat,
+RaytraceMonteCarloPipeline::RaytraceMonteCarloPipeline(WGPUDevice device, ShaderRegistry & shaderRegistry, WGPUTextureFormat surfaceFormat,
     WGPUBindGroupLayout cameraBindGroupLayout, WGPUBindGroupLayout geometryBindGroupLayout, WGPUBindGroupLayout materialBindGroupLayout)
 {
     WGPUBindGroupLayout bindGroupLayouts[3]
@@ -18,7 +18,7 @@ RaytraceFirstHitPipeline::RaytraceFirstHitPipeline(WGPUDevice device, ShaderRegi
 
     pipelineLayout_ = wgpuDeviceCreatePipelineLayout(device, &pipelineLayoutDescriptor);
 
-    WGPUShaderModule shaderModule = shaderRegistry.loadShaderModule("raytrace_first_hit");
+    WGPUShaderModule shaderModule = shaderRegistry.loadShaderModule("raytrace_monte_carlo");
 
     WGPUBlendState blendState;
     blendState.color.operation = WGPUBlendOperation_Add;
@@ -45,7 +45,7 @@ RaytraceFirstHitPipeline::RaytraceFirstHitPipeline(WGPUDevice device, ShaderRegi
 
     WGPURenderPipelineDescriptor renderPipelineDescriptor;
     renderPipelineDescriptor.nextInChain = nullptr;
-    renderPipelineDescriptor.label = "raytrace_first_hit";
+    renderPipelineDescriptor.label = "raytrace_monte_carlo";
     renderPipelineDescriptor.layout = pipelineLayout_;
     renderPipelineDescriptor.vertex.nextInChain = nullptr;
     renderPipelineDescriptor.vertex.module = shaderModule;
@@ -69,14 +69,14 @@ RaytraceFirstHitPipeline::RaytraceFirstHitPipeline(WGPUDevice device, ShaderRegi
     renderPipeline_ = wgpuDeviceCreateRenderPipeline(device, &renderPipelineDescriptor);
 }
 
-RaytraceFirstHitPipeline::~RaytraceFirstHitPipeline()
+RaytraceMonteCarloPipeline::~RaytraceMonteCarloPipeline()
 {
     wgpuRenderPipelineRelease(renderPipeline_);
     wgpuPipelineLayoutRelease(pipelineLayout_);
 }
 
-void renderRaytraceFirstHit(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextureView, bool clear,
-    WGPURenderPipeline raytraceFirstHitPipeline, WGPUBindGroup cameraBindGroup, SceneData const & sceneData)
+void renderRaytraceMonteCarlo(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextureView, bool clear,
+    WGPURenderPipeline raytraceMonteCarloPipeline, WGPUBindGroup cameraBindGroup, SceneData const & sceneData)
 {
     WGPURenderPassColorAttachment colorAttachment;
     colorAttachment.nextInChain = nullptr;
@@ -88,7 +88,7 @@ void renderRaytraceFirstHit(WGPUCommandEncoder commandEncoder, WGPUTextureView c
 
     WGPURenderPassDescriptor renderPassDescriptor;
     renderPassDescriptor.nextInChain = nullptr;
-    renderPassDescriptor.label = "raytrace_first_hit";
+    renderPassDescriptor.label = "raytrace_monte_carlo";
     renderPassDescriptor.colorAttachmentCount = 1;
     renderPassDescriptor.colorAttachments = &colorAttachment;
     renderPassDescriptor.depthStencilAttachment = nullptr;
@@ -100,7 +100,7 @@ void renderRaytraceFirstHit(WGPUCommandEncoder commandEncoder, WGPUTextureView c
     wgpuRenderPassEncoderSetBindGroup(renderPassEncoder, 0, cameraBindGroup, 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(renderPassEncoder, 1, sceneData.geometryBindGroup(), 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(renderPassEncoder, 2, sceneData.materialBindGroup(), 0, nullptr);
-    wgpuRenderPassEncoderSetPipeline(renderPassEncoder, raytraceFirstHitPipeline);
+    wgpuRenderPassEncoderSetPipeline(renderPassEncoder, raytraceMonteCarloPipeline);
     wgpuRenderPassEncoderDraw(renderPassEncoder, 3, 1, 0, 0);
     wgpuRenderPassEncoderEnd(renderPassEncoder);
     wgpuRenderPassEncoderRelease(renderPassEncoder);

@@ -20,6 +20,7 @@ struct Renderer
     {
         Preview,
         RaytraceFirstHit,
+        RaytraceMonteCarlo,
     };
 
     Mode renderMode() const;

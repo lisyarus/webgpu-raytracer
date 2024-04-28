@@ -92,7 +92,7 @@ int main(int argc, char ** argv) try
         case SDL_KEYDOWN:
             keysDown.insert(event->key.keysym.scancode);
             if (event->key.keysym.scancode == SDL_SCANCODE_SPACE)
-                renderer.setRenderMode(Renderer::Mode::RaytraceFirstHit);
+                renderer.setRenderMode(Renderer::Mode::RaytraceMonteCarlo);
             break;
         case SDL_KEYUP:
             keysDown.erase(event->key.keysym.scancode);

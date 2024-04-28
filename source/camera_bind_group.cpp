@@ -7,6 +7,9 @@ namespace
     {
         glm::mat4 viewProjectionMatrix;
         glm::mat4 viewProjectionInverseMatrix;
+        glm::uvec2 screenSize;
+        std::uint32_t frameID;
+        char padding[4];
     };
 
 }
@@ -75,11 +78,13 @@ CameraBindGroup::~CameraBindGroup()
     wgpuBufferRelease(uniformBuffer_);
 }
 
-void CameraBindGroup::update(WGPUQueue queue, Camera const & camera)
+void CameraBindGroup::update(WGPUQueue queue, Camera const & camera, glm::uvec2 const & screenSize, std::uint32_t frameID)
 {
     CameraUniform uniform;
     uniform.viewProjectionMatrix = camera.viewProjectionMatrix();
     uniform.viewProjectionInverseMatrix = glm::inverse(uniform.viewProjectionMatrix);
+    uniform.screenSize = screenSize;
+    uniform.frameID = frameID;
 
     wgpuQueueWriteBuffer(queue, uniformBuffer_, 0, &uniform, sizeof(uniform));
 }
