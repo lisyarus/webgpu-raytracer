@@ -14,7 +14,10 @@ struct ShaderRegistry::Impl
 private:
     std::filesystem::path shadersPath_;
     WGPUDevice device_;
+    std::unordered_map<std::string, std::string> cachedSources_;
     std::unordered_map<std::string, WGPUShaderModule> cachedShaderModules_;
+
+    std::string const & loadSource(std::string const & name);
 };
 
 ShaderRegistry::Impl::Impl(std::filesystem::path const & shadersPath, WGPUDevice device)
@@ -33,19 +36,7 @@ WGPUShaderModule ShaderRegistry::Impl::loadShaderModule(std::string const & name
     if (auto it = cachedShaderModules_.find(name); it != cachedShaderModules_.end())
         return it->second;
 
-    auto path = shadersPath_ / (name + ".wgsl");
-
-    std::vector<char> source(std::filesystem::file_size(path));
-
-    {
-        std::ifstream ifs(path);
-        if (!ifs)
-            throw std::runtime_error("Failed to load shader " + name);
-
-        ifs.read(source.data(), source.size());
-    }
-
-    source.push_back('\0');
+    auto const & source = loadSource(name + ".wgsl");
 
     WGPUShaderModuleWGSLDescriptor wgslDescriptor;
     wgslDescriptor.chain.next = nullptr;
@@ -61,6 +52,46 @@ WGPUShaderModule ShaderRegistry::Impl::loadShaderModule(std::string const & name
     WGPUShaderModule shaderModule = wgpuDeviceCreateShaderModule(device_, &shaderModuleDescriptor);
     cachedShaderModules_[name] = shaderModule;
     return shaderModule;
+}
+
+std::string const & ShaderRegistry::Impl::loadSource(std::string const & name)
+{
+    if (auto it = cachedSources_.find(name); it != cachedSources_.end())
+        return it->second;
+
+    auto path = shadersPath_ / name;
+
+    std::string source(std::filesystem::file_size(path), '\0');
+
+    {
+        std::ifstream ifs(path);
+        if (!ifs)
+            throw std::runtime_error("Failed to load shader " + name);
+
+        ifs.read(source.data(), source.size());
+    }
+
+    // Replace `use X.wgsl` statements with the source of X.wgsl
+
+    for (std::size_t useStart = 0; (useStart = source.find("use ", useStart)) != std::string::npos;)
+    {
+        if (useStart == 0 || source[useStart - 1] == '\n')
+        {
+            auto useEnd = source.find(';', useStart + 4);
+            auto useName = source.substr(useStart + 4, useEnd - (useStart + 4));
+
+            useEnd = source.find('\n', useEnd) + 1;
+            auto useSource = loadSource(useName);
+            source.replace(useStart, useEnd - useStart, useSource);
+            useStart = useStart + useSource.size();
+        }
+        else
+        {
+            useStart += 4;
+        }
+    }
+
+    return (cachedSources_[name] = std::move(source));
 }
 
 ShaderRegistry::ShaderRegistry(std::filesystem::path const & shadersPath, WGPUDevice device)

@@ -1,17 +1,7 @@
-struct Camera
-{
-	viewProjectionMatrix : mat4x4f,
-}
+use camera.wgsl;
+use material.wgsl;
 
 @group(0) @binding(0) var<uniform> camera : Camera;
-
-struct Material
-{
-	baseColorFactor : vec4f,
-	metallicRoughnessFactor : vec4f,
-	emissiveFactor : vec4f,
-}
-
 @group(1) @binding(0) var<storage, read> materials : array<Material>;
 
 struct VertexInput {
