@@ -6,6 +6,7 @@ namespace
     struct CameraUniform
     {
         glm::mat4 viewProjectionMatrix;
+        glm::mat4 viewProjectionInverseMatrix;
     };
 
 }
@@ -24,7 +25,7 @@ CameraBindGroup::CameraBindGroup(WGPUDevice device)
     WGPUBindGroupLayoutEntry layoutEntry;
     layoutEntry.nextInChain = nullptr;
     layoutEntry.binding = 0;
-    layoutEntry.visibility = WGPUShaderStage_Vertex;
+    layoutEntry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
     layoutEntry.buffer.nextInChain = nullptr;
     layoutEntry.buffer.type = WGPUBufferBindingType_Uniform;
     layoutEntry.buffer.hasDynamicOffset = false;
@@ -78,6 +79,7 @@ void CameraBindGroup::update(WGPUQueue queue, Camera const & camera)
 {
     CameraUniform uniform;
     uniform.viewProjectionMatrix = camera.viewProjectionMatrix();
+    uniform.viewProjectionInverseMatrix = glm::inverse(uniform.viewProjectionMatrix);
 
     wgpuQueueWriteBuffer(queue, uniformBuffer_, 0, &uniform, sizeof(uniform));
 }

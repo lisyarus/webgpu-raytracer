@@ -5,7 +5,7 @@ WGPUBindGroupLayout createMaterialBindGroupLayout(WGPUDevice device)
     WGPUBindGroupLayoutEntry layoutEntry;
     layoutEntry.nextInChain = nullptr;
     layoutEntry.binding = 0;
-    layoutEntry.visibility = WGPUShaderStage_Vertex;
+    layoutEntry.visibility = WGPUShaderStage_Vertex | WGPUShaderStage_Fragment;
     layoutEntry.buffer.nextInChain = nullptr;
     layoutEntry.buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
     layoutEntry.buffer.hasDynamicOffset = false;
