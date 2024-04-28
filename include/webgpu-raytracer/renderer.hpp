@@ -13,6 +13,18 @@ struct Renderer
     Renderer(WGPUDevice device, WGPUQueue queue, WGPUTextureFormat surfaceFormat, ShaderRegistry & shaderRegistry);
     ~Renderer();
 
+    WGPUBindGroupLayout geometryBindGroupLayout() const;
+    WGPUBindGroupLayout materialBindGroupLayout() const;
+
+    enum class Mode
+    {
+        Preview,
+        RaytraceFirstHit,
+    };
+
+    Mode renderMode() const;
+    void setRenderMode(Mode mode);
+
     void renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData);
 
 private:

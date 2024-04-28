@@ -1,5 +1,7 @@
 #include <webgpu-raytracer/scene_data.hpp>
 #include <webgpu-raytracer/gltf_iterator.hpp>
+#include <webgpu-raytracer/material_bind_group.hpp>
+#include <webgpu-raytracer/geometry_bind_group.hpp>
 
 #include <glm/glm.hpp>
 
@@ -11,7 +13,16 @@ namespace
     struct Vertex
     {
         glm::vec3 position;
+        std::uint32_t padding = 0;
         glm::vec3 normal;
+        std::uint32_t materialID;
+    };
+
+    struct Material
+    {
+        glm::vec4 baseColorFactor;
+        glm::vec4 metallicRoughnessFactor;
+        glm::vec4 emissiveFactor;
     };
 
     void readIndices(glTF::Asset const & asset, glTF::Accessor const & indexAccessor, std::vector<std::uint32_t> & indices, std::uint32_t baseVertex)
@@ -123,10 +134,19 @@ namespace
 
 }
 
-SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue queue)
+SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue queue,
+    WGPUBindGroupLayout geometryBindGroupLayout, WGPUBindGroupLayout materialBindGroupLayout)
 {
     std::vector<Vertex> vertices;
     std::vector<std::uint32_t> indices;
+    std::vector<Material> materials;
+
+    // Add default rough diffuse material
+    materials.push_back({
+        .baseColorFactor = glm::vec4(1.f),
+        .metallicRoughnessFactor = glm::vec4(1.f, 1.f, 0.f, 1.f),
+        .emissiveFactor = glm::vec4(1.f),
+    });
 
     for (auto const & node : asset.nodes)
     {
@@ -164,6 +184,7 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
 
             std::uint32_t baseIndex = indices.size();
             std::uint32_t baseVertex = vertices.size();
+            std::uint32_t indexCount = indexAccessor ? indexAccessor->count : positionAccessor->count;
 
             if (indexAccessor)
                 readIndices(asset, *indexAccessor, indices, baseVertex);
@@ -181,7 +202,9 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
             if (normalAccessor)
                 readNormals(asset, *normalAccessor, vertices, baseVertex);
             else
-                reconstructNormals(vertices, indices, baseVertex, baseIndex, positionAccessor->count, indexAccessor ? indexAccessor->count : positionAccessor->count);
+                reconstructNormals(vertices, indices, baseVertex, baseIndex, positionAccessor->count, indexCount);
+
+            std::uint32_t materialID = primitive.material ? 1 + *primitive.material : 0;
 
             for (std::uint32_t i = 0; i < positionAccessor->count; ++i)
             {
@@ -189,8 +212,17 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
 
                 v.position = glm::vec3(node.matrix * glm::vec4(v.position, 1.f));
                 v.normal = glm::normalize(normalMatrix * v.normal);
+                v.materialID = materialID;
             }
         }
+    }
+
+    for (auto const & materialIn : asset.materials)
+    {
+        auto & material = materials.emplace_back();
+        material.baseColorFactor = materialIn.baseColorFactor;
+        material.metallicRoughnessFactor = glm::vec4(1.f, materialIn.roughnessFactor, materialIn.metallicFactor, 1.f);
+        material.emissiveFactor = glm::vec4(materialIn.emissiveFactor, 1.f);
     }
 
     WGPUBufferDescriptor vertexBufferDescriptor;
@@ -213,11 +245,28 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
     indexBuffer_ = wgpuDeviceCreateBuffer(device, &indexBufferDescriptor);
     wgpuQueueWriteBuffer(queue, indexBuffer_, 0, indices.data(), indexBufferDescriptor.size);
 
+    WGPUBufferDescriptor materialBufferDescriptor;
+    materialBufferDescriptor.nextInChain = nullptr;
+    materialBufferDescriptor.label = nullptr;
+    materialBufferDescriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
+    materialBufferDescriptor.size = materials.size() * sizeof(materials[0]);
+    materialBufferDescriptor.mappedAtCreation = false;
+
+    materialBuffer_ = wgpuDeviceCreateBuffer(device, &materialBufferDescriptor);
+    wgpuQueueWriteBuffer(queue, materialBuffer_, 0, materials.data(), materialBufferDescriptor.size);
+
     indexCount_ = indices.size();
+
+    geometryBindGroup_ = createGeometryBindGroup(device, geometryBindGroupLayout, vertexBuffer_, indexBuffer_);
+    materialBindGroup_ = createMaterialBindGroup(device, materialBindGroupLayout, materialBuffer_);
 }
 
 SceneData::~SceneData()
 {
+    wgpuBindGroupRelease(materialBindGroup_);
+    wgpuBindGroupRelease(geometryBindGroup_);
+
+    wgpuBufferRelease(materialBuffer_);
     wgpuBufferRelease(indexBuffer_);
     wgpuBufferRelease(vertexBuffer_);
 }

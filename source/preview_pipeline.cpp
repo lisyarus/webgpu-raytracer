@@ -1,29 +1,39 @@
 #include <webgpu-raytracer/preview_pipeline.hpp>
 
-PreviewPipeline::PreviewPipeline(WGPUDevice device, ShaderRegistry & shaderRegistry, WGPUTextureFormat surfaceFormat, WGPUBindGroupLayout cameraBindGroupLayout)
+PreviewPipeline::PreviewPipeline(WGPUDevice device, ShaderRegistry & shaderRegistry, WGPUTextureFormat surfaceFormat,
+    WGPUBindGroupLayout cameraBindGroupLayout, WGPUBindGroupLayout materialBindGroupLayout)
 {
+    WGPUBindGroupLayout bindGroupLayouts[2]
+    {
+        cameraBindGroupLayout,
+        materialBindGroupLayout,
+    };
+
     WGPUPipelineLayoutDescriptor pipelineLayoutDescriptor;
     pipelineLayoutDescriptor.nextInChain = nullptr;
     pipelineLayoutDescriptor.label = nullptr;
-    pipelineLayoutDescriptor.bindGroupLayoutCount = 1;
-    pipelineLayoutDescriptor.bindGroupLayouts = &cameraBindGroupLayout;
+    pipelineLayoutDescriptor.bindGroupLayoutCount = 2;
+    pipelineLayoutDescriptor.bindGroupLayouts = bindGroupLayouts;
 
     pipelineLayout_ = wgpuDeviceCreatePipelineLayout(device, &pipelineLayoutDescriptor);
 
     WGPUShaderModule shaderModule = shaderRegistry.loadShaderModule("preview");
 
-    WGPUVertexAttribute vertexAttributes[2];
+    WGPUVertexAttribute vertexAttributes[3];
     vertexAttributes[0].format = WGPUVertexFormat_Float32x3;
     vertexAttributes[0].offset = 0;
     vertexAttributes[0].shaderLocation = 0;
     vertexAttributes[1].format = WGPUVertexFormat_Float32x3;
-    vertexAttributes[1].offset = 12;
+    vertexAttributes[1].offset = 16;
     vertexAttributes[1].shaderLocation = 1;
+    vertexAttributes[2].format = WGPUVertexFormat_Uint32;
+    vertexAttributes[2].offset = 28;
+    vertexAttributes[2].shaderLocation = 2;
 
     WGPUVertexBufferLayout vertexBufferLayout;
-    vertexBufferLayout.arrayStride = 24;
+    vertexBufferLayout.arrayStride = 32;
     vertexBufferLayout.stepMode = WGPUVertexStepMode_Vertex;
-    vertexBufferLayout.attributeCount = 2;
+    vertexBufferLayout.attributeCount = 3;
     vertexBufferLayout.attributes = vertexAttributes;
 
     WGPUDepthStencilState depthStencilState;
@@ -90,4 +100,47 @@ PreviewPipeline::~PreviewPipeline()
 {
     wgpuRenderPipelineRelease(renderPipeline_);
     wgpuPipelineLayoutRelease(pipelineLayout_);
+}
+
+void renderPreview(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextureView, WGPUTextureView depthTextureView,
+    WGPURenderPipeline previewPipeline, WGPUBindGroup cameraBindGroup, SceneData const & sceneData)
+{
+    WGPURenderPassColorAttachment colorAttachment;
+    colorAttachment.nextInChain = nullptr;
+    colorAttachment.view = colorTextureView;
+    colorAttachment.resolveTarget = nullptr;
+    colorAttachment.loadOp = WGPULoadOp_Clear;
+    colorAttachment.storeOp = WGPUStoreOp_Store;
+    colorAttachment.clearValue = {0.6, 0.8, 1.0, 0.0};
+
+    WGPURenderPassDepthStencilAttachment depthStencilAttachment;
+    depthStencilAttachment.view = depthTextureView;
+    depthStencilAttachment.depthLoadOp = WGPULoadOp_Clear;
+    depthStencilAttachment.depthStoreOp = WGPUStoreOp_Store;
+    depthStencilAttachment.depthClearValue = 1.f;
+    depthStencilAttachment.depthReadOnly = false;
+    depthStencilAttachment.stencilLoadOp = WGPULoadOp_Clear;
+    depthStencilAttachment.stencilStoreOp = WGPUStoreOp_Discard;
+    depthStencilAttachment.stencilClearValue = 0;
+    depthStencilAttachment.stencilReadOnly = true;
+
+    WGPURenderPassDescriptor renderPassDescriptor;
+    renderPassDescriptor.nextInChain = nullptr;
+    renderPassDescriptor.label = "preview";
+    renderPassDescriptor.colorAttachmentCount = 1;
+    renderPassDescriptor.colorAttachments = &colorAttachment;
+    renderPassDescriptor.depthStencilAttachment = &depthStencilAttachment;
+    renderPassDescriptor.occlusionQuerySet = nullptr;
+    renderPassDescriptor.timestampWrites = nullptr;
+
+    WGPURenderPassEncoder renderPassEncoder = wgpuCommandEncoderBeginRenderPass(commandEncoder, &renderPassDescriptor);
+
+    wgpuRenderPassEncoderSetBindGroup(renderPassEncoder, 0, cameraBindGroup, 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(renderPassEncoder, 1, sceneData.materialBindGroup(), 0, nullptr);
+    wgpuRenderPassEncoderSetPipeline(renderPassEncoder, previewPipeline);
+    wgpuRenderPassEncoderSetVertexBuffer(renderPassEncoder, 0, sceneData.vertexBuffer(), 0, wgpuBufferGetSize(sceneData.vertexBuffer()));
+    wgpuRenderPassEncoderSetIndexBuffer(renderPassEncoder, sceneData.indexBuffer(), WGPUIndexFormat_Uint32, 0, wgpuBufferGetSize(sceneData.indexBuffer()));
+    wgpuRenderPassEncoderDrawIndexed(renderPassEncoder, sceneData.indexCount(), 1, 0, 0, 0);
+    wgpuRenderPassEncoderEnd(renderPassEncoder);
+    wgpuRenderPassEncoderRelease(renderPassEncoder);
 }

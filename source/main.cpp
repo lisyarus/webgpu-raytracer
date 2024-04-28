@@ -37,7 +37,8 @@ int main(int argc, char ** argv) try
         camera = Camera(asset, asset.nodes[cameraNodes.front()]);
     camera.setAspectRatio(application.width() * 1.f / application.height());
 
-    SceneData sceneData(asset, application.device(), application.queue());
+    SceneData sceneData(asset, application.device(), application.queue(),
+        renderer.geometryBindGroupLayout(), renderer.materialBindGroupLayout());
 
     std::unordered_set<SDL_Scancode> keysDown;
 
@@ -50,7 +51,7 @@ int main(int argc, char ** argv) try
 
     for (bool running = true; running;)
     {
-        bool resized = false;
+        bool cameraMoved = false;
 
         while (auto event = application.poll()) switch (event->type)
         {
@@ -62,8 +63,6 @@ int main(int argc, char ** argv) try
             {
             case SDL_WINDOWEVENT_RESIZED:
                 application.resize(event->window.data1, event->window.data2, false);
-                camera.setAspectRatio(application.width() * 1.f / application.height());
-                resized = true;
                 break;
             }
             break;
@@ -87,10 +86,13 @@ int main(int argc, char ** argv) try
                 float speed = 2.f / application.height();
                 camera.rotateX(event->motion.xrel * speed);
                 camera.rotateY(event->motion.yrel * speed);
+                cameraMoved = true;
             }
             break;
         case SDL_KEYDOWN:
             keysDown.insert(event->key.keysym.scancode);
+            if (event->key.keysym.scancode == SDL_SCANCODE_SPACE)
+                renderer.setRenderMode(Renderer::Mode::RaytraceFirstHit);
             break;
         case SDL_KEYUP:
             keysDown.erase(event->key.keysym.scancode);
@@ -104,6 +106,8 @@ int main(int argc, char ** argv) try
             continue;
         }
 
+        camera.setAspectRatio(application.width() * 1.f / application.height());
+
         auto thisFrameStart = std::chrono::high_resolution_clock::now();
         float const dt = std::chrono::duration_cast<std::chrono::duration<float>>(thisFrameStart - lastFrameStart).count();
         lastFrameStart = thisFrameStart;
@@ -115,20 +119,41 @@ int main(int argc, char ** argv) try
             float movementSpeed = 10.f; // TODO: select based on scene size
 
             if (keysDown.contains(SDL_SCANCODE_Q))
+            {
                 camera.rotateZ(- rotationSpeed * dt);
+                cameraMoved = true;
+            }
             if (keysDown.contains(SDL_SCANCODE_E))
+            {
                 camera.rotateZ(  rotationSpeed * dt);
+                cameraMoved = true;
+            }
 
             if (keysDown.contains(SDL_SCANCODE_S))
+            {
                 camera.moveForward(- movementSpeed * dt);
+                cameraMoved = true;
+            }
             if (keysDown.contains(SDL_SCANCODE_W))
+            {
                 camera.moveForward(  movementSpeed * dt);
+                cameraMoved = true;
+            }
 
             if (keysDown.contains(SDL_SCANCODE_A))
+            {
                 camera.moveRight(- movementSpeed * dt);
+                cameraMoved = true;
+            }
             if (keysDown.contains(SDL_SCANCODE_D))
+            {
                 camera.moveRight(  movementSpeed * dt);
+                cameraMoved = true;
+            }
         }
+
+        if (cameraMoved)
+            renderer.setRenderMode(Renderer::Mode::Preview);
 
         renderer.renderFrame(surfaceTexture, camera, sceneData);
         application.present();
