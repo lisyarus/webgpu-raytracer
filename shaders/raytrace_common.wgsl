@@ -8,13 +8,12 @@ struct Ray
 	direction : vec3f,
 }
 
-fn computeCameraRay(viewProjectionInverseMatrix : mat4x4f, screenSpacePosition : vec2f) -> Ray {
-	let p0 = perspectiveDivide(viewProjectionInverseMatrix * vec4f(screenSpacePosition, 0.0, 1.0));
-	let p1 = perspectiveDivide(viewProjectionInverseMatrix * vec4f(screenSpacePosition, 1.0, 1.0));
+fn computeCameraRay(cameraPosition : vec3f, viewProjectionInverseMatrix : mat4x4f, screenSpacePosition : vec2f) -> Ray {
+	let p = perspectiveDivide(viewProjectionInverseMatrix * vec4f(screenSpacePosition, 0.0, 1.0));
 
 	return Ray(
-		p0,
-		normalize(p1 - p0)
+		cameraPosition,
+		normalize(p - cameraPosition)
 	);
 }
 

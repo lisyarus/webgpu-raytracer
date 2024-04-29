@@ -7,9 +7,11 @@ namespace
     {
         glm::mat4 viewProjectionMatrix;
         glm::mat4 viewProjectionInverseMatrix;
+        glm::vec3 position;
+        char padding1[4];
         glm::uvec2 screenSize;
         std::uint32_t frameID;
-        char padding[4];
+        char padding2[4];
     };
 
 }
@@ -83,6 +85,7 @@ void CameraBindGroup::update(WGPUQueue queue, Camera const & camera, glm::uvec2 
     CameraUniform uniform;
     uniform.viewProjectionMatrix = camera.viewProjectionMatrix();
     uniform.viewProjectionInverseMatrix = glm::inverse(uniform.viewProjectionMatrix);
+    uniform.position = camera.position();
     uniform.screenSize = screenSize;
     uniform.frameID = frameID;
 

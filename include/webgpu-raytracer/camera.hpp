@@ -19,6 +19,7 @@ struct Camera
     void moveForward(float distance);
     void moveRight(float distance);
 
+    glm::vec3 position() const { return position_; }
     glm::mat4 viewProjectionMatrix() const;
 
 private:

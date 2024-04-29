@@ -63,7 +63,7 @@ fn vertexMain(@builtin(vertex_index) index : u32) -> VertexOut {
 @fragment
 fn fragmentMain(in : VertexOut) -> @location(0) vec4f {
 
-	let cameraRay = computeCameraRay(camera.viewProjectionInverseMatrix, in.screenSpacePosition);
+	let cameraRay = computeCameraRay(camera.position, camera.viewProjectionInverseMatrix, in.screenSpacePosition);
 
 	return vec4f(raytraceFirstHit(cameraRay), 1.0);
 }
