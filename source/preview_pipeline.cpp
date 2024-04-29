@@ -19,22 +19,28 @@ PreviewPipeline::PreviewPipeline(WGPUDevice device, ShaderRegistry & shaderRegis
 
     WGPUShaderModule shaderModule = shaderRegistry.loadShaderModule("preview");
 
-    WGPUVertexAttribute vertexAttributes[3];
+    WGPUVertexAttribute vertexPositionAttributes[1];
+    vertexPositionAttributes[0].format = WGPUVertexFormat_Float32x3;
+    vertexPositionAttributes[0].offset = 0;
+    vertexPositionAttributes[0].shaderLocation = 0;
+
+    WGPUVertexAttribute vertexAttributes[2];
     vertexAttributes[0].format = WGPUVertexFormat_Float32x3;
     vertexAttributes[0].offset = 0;
-    vertexAttributes[0].shaderLocation = 0;
-    vertexAttributes[1].format = WGPUVertexFormat_Float32x3;
-    vertexAttributes[1].offset = 16;
-    vertexAttributes[1].shaderLocation = 1;
-    vertexAttributes[2].format = WGPUVertexFormat_Uint32;
-    vertexAttributes[2].offset = 28;
-    vertexAttributes[2].shaderLocation = 2;
+    vertexAttributes[0].shaderLocation = 1;
+    vertexAttributes[1].format = WGPUVertexFormat_Uint32;
+    vertexAttributes[1].offset = 12;
+    vertexAttributes[1].shaderLocation = 2;
 
-    WGPUVertexBufferLayout vertexBufferLayout;
-    vertexBufferLayout.arrayStride = 32;
-    vertexBufferLayout.stepMode = WGPUVertexStepMode_Vertex;
-    vertexBufferLayout.attributeCount = 3;
-    vertexBufferLayout.attributes = vertexAttributes;
+    WGPUVertexBufferLayout vertexBufferLayouts[2];
+    vertexBufferLayouts[0].arrayStride = 16;
+    vertexBufferLayouts[0].stepMode = WGPUVertexStepMode_Vertex;
+    vertexBufferLayouts[0].attributeCount = 1;
+    vertexBufferLayouts[0].attributes = vertexPositionAttributes;
+    vertexBufferLayouts[1].arrayStride = 16;
+    vertexBufferLayouts[1].stepMode = WGPUVertexStepMode_Vertex;
+    vertexBufferLayouts[1].attributeCount = 2;
+    vertexBufferLayouts[1].attributes = vertexAttributes;
 
     WGPUDepthStencilState depthStencilState;
     depthStencilState.nextInChain = nullptr;
@@ -79,8 +85,8 @@ PreviewPipeline::PreviewPipeline(WGPUDevice device, ShaderRegistry & shaderRegis
     renderPipelineDescriptor.vertex.entryPoint = "vertexMain";
     renderPipelineDescriptor.vertex.constantCount = 0;
     renderPipelineDescriptor.vertex.constants = nullptr;
-    renderPipelineDescriptor.vertex.bufferCount = 1;
-    renderPipelineDescriptor.vertex.buffers = &vertexBufferLayout;
+    renderPipelineDescriptor.vertex.bufferCount = 2;
+    renderPipelineDescriptor.vertex.buffers = vertexBufferLayouts;
     renderPipelineDescriptor.primitive.nextInChain = nullptr;
     renderPipelineDescriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     renderPipelineDescriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
@@ -138,7 +144,8 @@ void renderPreview(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextu
     wgpuRenderPassEncoderSetBindGroup(renderPassEncoder, 0, cameraBindGroup, 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(renderPassEncoder, 1, sceneData.materialBindGroup(), 0, nullptr);
     wgpuRenderPassEncoderSetPipeline(renderPassEncoder, previewPipeline);
-    wgpuRenderPassEncoderSetVertexBuffer(renderPassEncoder, 0, sceneData.vertexBuffer(), 0, wgpuBufferGetSize(sceneData.vertexBuffer()));
+    wgpuRenderPassEncoderSetVertexBuffer(renderPassEncoder, 0, sceneData.vertexPositionsBuffer(), 0, wgpuBufferGetSize(sceneData.vertexPositionsBuffer()));
+    wgpuRenderPassEncoderSetVertexBuffer(renderPassEncoder, 1, sceneData.vertexAttributesBuffer(), 0, wgpuBufferGetSize(sceneData.vertexAttributesBuffer()));
     wgpuRenderPassEncoderDraw(renderPassEncoder, sceneData.vertexCount(), 1, 0, 0);
     wgpuRenderPassEncoderEnd(renderPassEncoder);
     wgpuRenderPassEncoderRelease(renderPassEncoder);

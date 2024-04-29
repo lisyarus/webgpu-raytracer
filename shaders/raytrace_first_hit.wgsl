@@ -5,7 +5,8 @@ use raytrace_common.wgsl;
 
 @group(0) @binding(0) var<uniform> camera : Camera;
 
-@group(1) @binding(0) var<storage, read> vertices : array<Vertex>;
+@group(1) @binding(0) var<storage, read> vertexPositions : array<vec4f>;
+@group(1) @binding(1) var<storage, read> vertexAttributes : array<Vertex>;
 @group(1) @binding(2) var<storage, read> bvhNodes : array<BVHNode>;
 
 @group(2) @binding(0) var<storage, read> materials : array<Material>;
@@ -16,13 +17,13 @@ fn raytraceFirstHit(ray : Ray) -> vec3f {
 	let intersection = intersectScene(ray);
 
 	if (intersection.intersects) {
-		var normal = normalize(cross(intersection.vertices[1].position - intersection.vertices[0].position, intersection.vertices[2].position - intersection.vertices[0].position));
+		var normal = normalize(cross(intersection.vertices[1] - intersection.vertices[0], intersection.vertices[2] - intersection.vertices[0]));
 		if (dot(normal, ray.direction) > 0.0) {
 			normal = -normal;
 		}
 
 		let lightDirection = normalize(vec3f(1.0, 3.0, 2.0));
-		let material = materials[intersection.vertices[0].materialID];
+		let material = materials[vertexAttributes[3 * intersection.triangleID].materialID];
 
 		return 0.5 * material.baseColorFactor.rgb * (0.5 + 0.5 * dot(normal, lightDirection)) + material.emissiveFactor.rgb;
 	} else {

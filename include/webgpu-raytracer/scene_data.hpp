@@ -10,7 +10,8 @@ struct SceneData
         WGPUBindGroupLayout geometryBindGroupLayout, WGPUBindGroupLayout materialBindGroupLayout);
     ~SceneData();
 
-    WGPUBuffer vertexBuffer() const { return vertexBuffer_; }
+    WGPUBuffer vertexPositionsBuffer() const { return vertexPositionsBuffer_; }
+    WGPUBuffer vertexAttributesBuffer() const { return vertexAttributesBuffer_; }
     WGPUBuffer materialBuffer() const { return materialBuffer_; }
 
     std::uint32_t vertexCount() const { return vertexCount_; }
@@ -19,7 +20,8 @@ struct SceneData
     WGPUBindGroup materialBindGroup() const { return materialBindGroup_; }
 
 private:
-    WGPUBuffer vertexBuffer_;
+    WGPUBuffer vertexPositionsBuffer_;
+    WGPUBuffer vertexAttributesBuffer_;
     WGPUBuffer materialBuffer_;
     WGPUBuffer bvhNodesBuffer_;
 

@@ -11,12 +11,19 @@
 namespace
 {
 
+    struct VertexAttributes
+    {
+        glm::vec3 normal;
+        std::uint32_t materialID;
+    };
+
+    static_assert(sizeof(VertexAttributes) == 16);
+
     struct Vertex
     {
         glm::vec3 position;
         std::uint32_t padding = 0;
-        glm::vec3 normal;
-        std::uint32_t materialID;
+        VertexAttributes attributes;
     };
 
     struct Material
@@ -89,7 +96,7 @@ namespace
         case glTF::Accessor::ComponentType::Float:
             for (auto normal : glTF::AccessorRange<glm::vec3>(asset, normalAccessor))
             {
-                vertexIt->normal = normal;
+                vertexIt->attributes.normal = normal;
                 ++vertexIt;
             }
             break;
@@ -99,7 +106,7 @@ namespace
             // Prevent uninitialized data
             for (std::uint32_t i = 0; i < normalAccessor.count; ++i)
             {
-                vertexIt->normal = glm::vec3(0.f, 0.f, 1.f);
+                vertexIt->attributes.normal = glm::vec3(0.f, 0.f, 1.f);
                 ++vertexIt;
             }
             break;
@@ -110,7 +117,7 @@ namespace
         std::uint32_t vertexCount, std::uint32_t indexCount)
     {
         for (std::uint32_t i = 0; i < vertexCount; ++i)
-            vertices[baseVertex + i].normal = glm::vec3(0.f);
+            vertices[baseVertex + i].attributes.normal = glm::vec3(0.f);
 
         // Compute average adjacent triangle normal
         for (std::uint32_t i = 0; i < indexCount; i += 3)
@@ -121,15 +128,15 @@ namespace
 
             auto normal = glm::normalize(glm::cross(v1.position - v0.position, v2.position - v0.position));
 
-            v0.normal += normal;
-            v1.normal += normal;
-            v2.normal += normal;
+            v0.attributes.normal += normal;
+            v1.attributes.normal += normal;
+            v2.attributes.normal += normal;
         }
 
         for (std::uint32_t i = 0; i < vertexCount; ++i)
         {
             auto & v = vertices[baseVertex + i];
-            v.normal = glm::normalize(v.normal);
+            v.attributes.normal = glm::normalize(v.attributes.normal);
         }
     }
 
@@ -212,8 +219,8 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
                 auto & v = vertices[baseVertex + i];
 
                 v.position = glm::vec3(node.matrix * glm::vec4(v.position, 1.f));
-                v.normal = glm::normalize(normalMatrix * v.normal);
-                v.materialID = materialID;
+                v.attributes.normal = glm::normalize(normalMatrix * v.attributes.normal);
+                v.attributes.materialID = materialID;
             }
         }
     }
@@ -266,15 +273,33 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
         vertices = std::move(deindexedVertices);
     }
 
-    WGPUBufferDescriptor vertexBufferDescriptor;
-    vertexBufferDescriptor.nextInChain = nullptr;
-    vertexBufferDescriptor.label = nullptr;
-    vertexBufferDescriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage;
-    vertexBufferDescriptor.size = vertices.size() * sizeof(vertices[0]);
-    vertexBufferDescriptor.mappedAtCreation = false;
+    std::vector<glm::vec4> vertexPositions;
+    std::vector<VertexAttributes> vertexAttributes;
+    for (auto const & v : vertices)
+    {
+        vertexPositions.push_back(glm::vec4(v.position, 1.f));
+        vertexAttributes.push_back(v.attributes);
+    }
 
-    vertexBuffer_ = wgpuDeviceCreateBuffer(device, &vertexBufferDescriptor);
-    wgpuQueueWriteBuffer(queue, vertexBuffer_, 0, vertices.data(), vertexBufferDescriptor.size);
+    WGPUBufferDescriptor vertexPositionsBufferDescriptor;
+    vertexPositionsBufferDescriptor.nextInChain = nullptr;
+    vertexPositionsBufferDescriptor.label = nullptr;
+    vertexPositionsBufferDescriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage;
+    vertexPositionsBufferDescriptor.size = vertexPositions.size() * sizeof(vertexPositions[0]);
+    vertexPositionsBufferDescriptor.mappedAtCreation = false;
+
+    vertexPositionsBuffer_ = wgpuDeviceCreateBuffer(device, &vertexPositionsBufferDescriptor);
+    wgpuQueueWriteBuffer(queue, vertexPositionsBuffer_, 0, vertexPositions.data(), vertexPositionsBufferDescriptor.size);
+
+    WGPUBufferDescriptor vertexAttributesBufferDescriptor;
+    vertexAttributesBufferDescriptor.nextInChain = nullptr;
+    vertexAttributesBufferDescriptor.label = nullptr;
+    vertexAttributesBufferDescriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Vertex | WGPUBufferUsage_Storage;
+    vertexAttributesBufferDescriptor.size = vertexAttributes.size() * sizeof(vertexAttributes[0]);
+    vertexAttributesBufferDescriptor.mappedAtCreation = false;
+
+    vertexAttributesBuffer_ = wgpuDeviceCreateBuffer(device, &vertexAttributesBufferDescriptor);
+    wgpuQueueWriteBuffer(queue, vertexAttributesBuffer_, 0, vertexAttributes.data(), vertexAttributesBufferDescriptor.size);
 
     WGPUBufferDescriptor materialBufferDescriptor;
     materialBufferDescriptor.nextInChain = nullptr;
@@ -298,7 +323,7 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
 
     vertexCount_ = vertices.size();
 
-    geometryBindGroup_ = createGeometryBindGroup(device, geometryBindGroupLayout, vertexBuffer_, bvhNodesBuffer_);
+    geometryBindGroup_ = createGeometryBindGroup(device, geometryBindGroupLayout, vertexPositionsBuffer_, vertexAttributesBuffer_, bvhNodesBuffer_);
     materialBindGroup_ = createMaterialBindGroup(device, materialBindGroupLayout, materialBuffer_);
 }
 
@@ -309,5 +334,6 @@ SceneData::~SceneData()
 
     wgpuBufferRelease(bvhNodesBuffer_);
     wgpuBufferRelease(materialBuffer_);
-    wgpuBufferRelease(vertexBuffer_);
+    wgpuBufferRelease(vertexAttributesBuffer_);
+    wgpuBufferRelease(vertexPositionsBuffer_);
 }
