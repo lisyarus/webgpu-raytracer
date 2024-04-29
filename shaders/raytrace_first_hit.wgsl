@@ -6,35 +6,28 @@ use raytrace_common.wgsl;
 @group(0) @binding(0) var<uniform> camera : Camera;
 
 @group(1) @binding(0) var<storage, read> vertices : array<Vertex>;
+@group(1) @binding(2) var<storage, read> bvhNodes : array<BVHNode>;
 
 @group(2) @binding(0) var<storage, read> materials : array<Material>;
 
+use bvh_traverse.wgsl;
+
 fn raytraceFirstHit(ray : Ray) -> vec3f {
-	var color = vec3f(0.0);
-	var closestHit = TriangleHit(1e30, vec2f(0.0), false);
+	let intersection = intersectScene(ray);
 
-	for (var i = 0u; i < arrayLength(&vertices); i += 3u) {
-		let v0 = vertices[i + 0u];
-		let v1 = vertices[i + 1u];
-		let v2 = vertices[i + 2u];
-
-		let hit = intersectRayTriangle(ray, v0.position, v1.position, v2.position);
-		if (hit.intersects && hit.distance < closestHit.distance) {
-			closestHit = hit;
-
-			var normal = normalize(cross(v1.position - v0.position, v2.position - v0.position));
-			if (dot(normal, ray.direction) > 0.0) {
-				normal = -normal;
-			}
-
-			let lightDirection = normalize(vec3f(1.0, 3.0, 2.0));
-			let material = materials[v0.materialID];
-
-			color = 0.5 * material.baseColorFactor.rgb * (0.5 + 0.5 * dot(normal, lightDirection)) + material.emissiveFactor.rgb;
+	if (intersection.intersects) {
+		var normal = normalize(cross(intersection.vertices[1].position - intersection.vertices[0].position, intersection.vertices[2].position - intersection.vertices[0].position));
+		if (dot(normal, ray.direction) > 0.0) {
+			normal = -normal;
 		}
-	}
 
-	return color;
+		let lightDirection = normalize(vec3f(1.0, 3.0, 2.0));
+		let material = materials[intersection.vertices[0].materialID];
+
+		return 0.5 * material.baseColorFactor.rgb * (0.5 + 0.5 * dot(normal, lightDirection)) + material.emissiveFactor.rgb;
+	} else {
+		return vec3f(0.0);
+	}
 }
 
 struct VertexOut
