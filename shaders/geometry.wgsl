@@ -18,7 +18,7 @@ struct BVHNode
 	triangleCount : u32,
 }
 
-const MAX_BVH_DEPTH = 16u;
+const MAX_BVH_DEPTH = 32u;
 const MAX_BVH_STACK_SIZE = MAX_BVH_DEPTH + 1u;
 const BVH_NODE_AXIS_MASK = 3u << 30u;
 const BVH_NODE_AXIS_SHIFT = 30u;

@@ -1,15 +1,18 @@
 #include <webgpu-raytracer/bvh.hpp>
 
 #include <algorithm>
+#include <iostream>
 
 namespace
 {
 
-    constexpr std::uint32_t MAX_DEPTH = 16;
+    constexpr std::uint32_t MAX_DEPTH = 32;
 
     template <typename Iterator>
-    void buildNode(BVH & bvh, std::vector<AABB> const & triangleAABB, std::uint32_t nodeID, Iterator trianglesBegin, Iterator trianglesEnd, std::uint32_t depth)
+    void buildNode(BVH & bvh, std::vector<AABB> const & triangleAABB, std::uint32_t nodeID, Iterator trianglesBegin, Iterator trianglesEnd, std::uint32_t depth, std::uint32_t & maxDepth)
     {
+        maxDepth = std::max(depth, maxDepth);
+
         auto & node = bvh.nodes[nodeID];
         for (auto it = trianglesBegin; it != trianglesEnd; ++it)
             node.aabb.extend(triangleAABB[*it]);
@@ -93,8 +96,8 @@ namespace
 
             auto splitIt = trianglesBegin + bestSplitPosition;
 
-            buildNode(bvh, triangleAABB, leftChild, trianglesBegin, splitIt, depth + 1);
-            buildNode(bvh, triangleAABB, leftChild + 1, splitIt, trianglesEnd, depth + 1);
+            buildNode(bvh, triangleAABB, leftChild, trianglesBegin, splitIt, depth + 1, maxDepth);
+            buildNode(bvh, triangleAABB, leftChild + 1, splitIt, trianglesEnd, depth + 1, maxDepth);
         }
     }
 
@@ -107,7 +110,12 @@ BVH buildBVH(std::vector<AABB> const & triangleAABB)
     for (std::uint32_t i = 0; i < result.triangleIDs.size(); ++i)
         result.triangleIDs[i] = i;
 
+    std::uint32_t maxDepth = 0;
+
     result.nodes.emplace_back();
-    buildNode(result, triangleAABB, 0, result.triangleIDs.begin(), result.triangleIDs.end(), 0);
+    buildNode(result, triangleAABB, 0, result.triangleIDs.begin(), result.triangleIDs.end(), 0, maxDepth);
+
+    std::cout << "BVH max depth: " << maxDepth << std::endl;
+
     return result;
 }
