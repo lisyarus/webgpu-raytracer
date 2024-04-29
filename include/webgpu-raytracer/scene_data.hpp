@@ -23,6 +23,8 @@ private:
     WGPUBuffer vertexBuffer_;
     WGPUBuffer indexBuffer_;
     WGPUBuffer materialBuffer_;
+    WGPUBuffer bvhNodesBuffer_;
+    WGPUBuffer bvhTrianglesBuffer_;
 
     std::uint32_t indexCount_;
 

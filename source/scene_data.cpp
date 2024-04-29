@@ -2,6 +2,7 @@
 #include <webgpu-raytracer/gltf_iterator.hpp>
 #include <webgpu-raytracer/material_bind_group.hpp>
 #include <webgpu-raytracer/geometry_bind_group.hpp>
+#include <webgpu-raytracer/bvh.hpp>
 
 #include <glm/glm.hpp>
 
@@ -225,6 +226,16 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
         material.emissiveFactor = glm::vec4(materialIn.emissiveFactor, 1.f);
     }
 
+    std::vector<AABB> triangleAABB(indices.size() / 3);
+    for (std::uint32_t i = 0; i < triangleAABB.size(); ++i)
+    {
+        triangleAABB[i].extend(vertices[indices[3 * i + 0]].position);
+        triangleAABB[i].extend(vertices[indices[3 * i + 1]].position);
+        triangleAABB[i].extend(vertices[indices[3 * i + 2]].position);
+    }
+
+    BVH bvh = buildBVH(triangleAABB);
+
     WGPUBufferDescriptor vertexBufferDescriptor;
     vertexBufferDescriptor.nextInChain = nullptr;
     vertexBufferDescriptor.label = nullptr;
@@ -255,9 +266,29 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
     materialBuffer_ = wgpuDeviceCreateBuffer(device, &materialBufferDescriptor);
     wgpuQueueWriteBuffer(queue, materialBuffer_, 0, materials.data(), materialBufferDescriptor.size);
 
+    WGPUBufferDescriptor bvhNodesBufferDescriptor;
+    bvhNodesBufferDescriptor.nextInChain = nullptr;
+    bvhNodesBufferDescriptor.label = nullptr;
+    bvhNodesBufferDescriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
+    bvhNodesBufferDescriptor.size = bvh.nodes.size() * sizeof(bvh.nodes[0]);
+    bvhNodesBufferDescriptor.mappedAtCreation = false;
+
+    bvhNodesBuffer_ = wgpuDeviceCreateBuffer(device, &bvhNodesBufferDescriptor);
+    wgpuQueueWriteBuffer(queue, bvhNodesBuffer_, 0, bvh.nodes.data(), bvhNodesBufferDescriptor.size);
+
+    WGPUBufferDescriptor bvhTrianglesBufferDescriptor;
+    bvhTrianglesBufferDescriptor.nextInChain = nullptr;
+    bvhTrianglesBufferDescriptor.label = nullptr;
+    bvhTrianglesBufferDescriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
+    bvhTrianglesBufferDescriptor.size = bvh.triangleIDs.size() * sizeof(bvh.triangleIDs[0]);
+    bvhTrianglesBufferDescriptor.mappedAtCreation = false;
+
+    bvhTrianglesBuffer_ = wgpuDeviceCreateBuffer(device, &bvhTrianglesBufferDescriptor);
+    wgpuQueueWriteBuffer(queue, bvhTrianglesBuffer_, 0, bvh.triangleIDs.data(), bvhTrianglesBufferDescriptor.size);
+
     indexCount_ = indices.size();
 
-    geometryBindGroup_ = createGeometryBindGroup(device, geometryBindGroupLayout, vertexBuffer_, indexBuffer_);
+    geometryBindGroup_ = createGeometryBindGroup(device, geometryBindGroupLayout, vertexBuffer_, indexBuffer_, bvhNodesBuffer_, bvhTrianglesBuffer_);
     materialBindGroup_ = createMaterialBindGroup(device, materialBindGroupLayout, materialBuffer_);
 }
 
@@ -266,6 +297,8 @@ SceneData::~SceneData()
     wgpuBindGroupRelease(materialBindGroup_);
     wgpuBindGroupRelease(geometryBindGroup_);
 
+    wgpuBufferRelease(bvhTrianglesBuffer_);
+    wgpuBufferRelease(bvhNodesBuffer_);
     wgpuBufferRelease(materialBuffer_);
     wgpuBufferRelease(indexBuffer_);
     wgpuBufferRelease(vertexBuffer_);

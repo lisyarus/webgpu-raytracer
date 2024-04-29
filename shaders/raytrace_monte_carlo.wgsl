@@ -8,6 +8,8 @@ use random.wgsl;
 
 @group(1) @binding(0) var<storage, read> vertices : array<Vertex>;
 @group(1) @binding(1) var<storage, read> indices : array<u32>;
+@group(1) @binding(2) var<storage, read> bvhNodes : array<BVHNode>;
+@group(1) @binding(3) var<storage, read> bvhTriangles : array<u32>;
 
 @group(2) @binding(0) var<storage, read> materials : array<Material>;
 
@@ -19,6 +21,7 @@ struct SceneIntersection
 	distance : f32,
 	vertices : array<Vertex, 3>,
 	uv : vec2f,
+	visitedNodeCount : u32,
 }
 
 fn intersectScene(ray : Ray) -> SceneIntersection {
@@ -30,22 +33,62 @@ fn intersectScene(ray : Ray) -> SceneIntersection {
 			defaultVertex(),
 			defaultVertex()
 		),
-		vec2f(0.0)
+		vec2f(0.0),
+		0u
 	);
 
-	for (var i = 0u; i < arrayLength(&indices); i += 3u) {
-		let v0 = vertices[indices[i + 0u]];
-		let v1 = vertices[indices[i + 1u]];
-		let v2 = vertices[indices[i + 2u]];
+	var nodeStack = array<u32, MAX_BVH_STACK_SIZE>();
+	var nodeStackSize = 1u;
+	nodeStack[0u] = 0u;
 
-		let hit = intersectRayTriangle(ray, v0.position, v1.position, v2.position);
-		if (hit.intersects && hit.distance < result.distance) {
-			result.intersects = true;
-			result.distance = hit.distance;
-			result.vertices[0] = v0;
-			result.vertices[1] = v1;
-			result.vertices[2] = v2;
-			result.uv = hit.uv;
+	while (nodeStackSize > 0u) {
+		let nodeID = nodeStack[nodeStackSize - 1u];
+		nodeStackSize -= 1u;
+
+		result.visitedNodeCount += 1u;
+
+		let node = bvhNodes[nodeID];
+
+		let hit = intersectRayAABB(ray, vec3f(node.minX, node.minY, node.minZ), vec3f(node.maxX, node.maxY, node.maxZ));
+
+		if (!hit.intersects || hit.distance > result.distance) {
+			continue;
+		}
+
+		if (node.triangleCount > 0) {
+			for (var i = 0u; i < node.triangleCount; i += 1u) {
+				let triangleID = bvhTriangles[node.leftChildOrFirstTriangle + i];
+
+				let v0 = vertices[indices[3 * triangleID + 0u]];
+				let v1 = vertices[indices[3 * triangleID + 1u]];
+				let v2 = vertices[indices[3 * triangleID + 2u]];
+
+				let hit = intersectRayTriangle(ray, v0.position, v1.position, v2.position);
+				if (hit.intersects && hit.distance < result.distance) {
+					result.intersects = true;
+					result.distance = hit.distance;
+					result.vertices[0] = v0;
+					result.vertices[1] = v1;
+					result.vertices[2] = v2;
+					result.uv = hit.uv;
+				}
+			}
+		} else {
+			let firstChild = node.leftChildOrFirstTriangle & (~BVH_NODE_AXIS_MASK);
+
+			// Ordered traversal: visit closer child first (i.e. put closer child higher on the stack)
+
+			let nodeAxis = node.leftChildOrFirstTriangle >> BVH_NODE_AXIS_SHIFT;
+
+			if (ray.direction[nodeAxis] > 0.0) {
+				nodeStack[nodeStackSize] = firstChild + 1u;
+				nodeStack[nodeStackSize + 1u] = firstChild;
+			} else {
+				nodeStack[nodeStackSize] = firstChild;
+				nodeStack[nodeStackSize + 1u] = firstChild + 1u;
+			}
+
+			nodeStackSize += 2u;
 		}
 	}
 
@@ -60,7 +103,7 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 
 	var currentRay = ray;
 
-	for (var rayDepth = 0u; rayDepth < 8u; rayDepth += 1u) {
+	for (var rayDepth = 0u; rayDepth < 4u; rayDepth += 1u) {
 		let intersection = intersectScene(currentRay);
 		if (intersection.intersects) {
 			let material = materials[intersection.vertices[0].materialID];
