@@ -40,7 +40,7 @@ namespace glTF
             auto pixels = stbi_load(imagePath.c_str(), (int *)&result.width, (int *)&result.height, &channels, 4);
 
             result.data.resize(result.width * result.height);
-            std::copy(pixels, pixels + result.width * result.height * 4, result.data.data());
+            std::copy(pixels, pixels + result.width * result.height * 4, (char *)result.data.data());
 
             stbi_image_free(pixels);
 
