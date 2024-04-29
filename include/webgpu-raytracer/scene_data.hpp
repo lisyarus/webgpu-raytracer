@@ -11,22 +11,19 @@ struct SceneData
     ~SceneData();
 
     WGPUBuffer vertexBuffer() const { return vertexBuffer_; }
-    WGPUBuffer indexBuffer() const { return indexBuffer_; }
     WGPUBuffer materialBuffer() const { return materialBuffer_; }
 
-    std::uint32_t indexCount() const { return indexCount_; }
+    std::uint32_t vertexCount() const { return vertexCount_; }
 
     WGPUBindGroup geometryBindGroup() const { return geometryBindGroup_; }
     WGPUBindGroup materialBindGroup() const { return materialBindGroup_; }
 
 private:
     WGPUBuffer vertexBuffer_;
-    WGPUBuffer indexBuffer_;
     WGPUBuffer materialBuffer_;
     WGPUBuffer bvhNodesBuffer_;
-    WGPUBuffer bvhTrianglesBuffer_;
 
-    std::uint32_t indexCount_;
+    std::uint32_t vertexCount_;
 
     WGPUBindGroup geometryBindGroup_;
     WGPUBindGroup materialBindGroup_;

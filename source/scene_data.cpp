@@ -236,6 +236,36 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
 
     BVH bvh = buildBVH(triangleAABB);
 
+    {
+        // Instead of storing triangleID's per BVH node, store triangles
+        // themselves (as index triples), thereby removing the need for
+        // extra indirection in the shader
+
+        std::vector<std::uint32_t> sortedIndices;
+        for (auto triangleID : bvh.triangleIDs)
+        {
+            sortedIndices.push_back(indices[3 * triangleID + 0]);
+            sortedIndices.push_back(indices[3 * triangleID + 1]);
+            sortedIndices.push_back(indices[3 * triangleID + 2]);
+        }
+        indices = std::move(sortedIndices);
+    }
+
+    {
+        // Instead of using indexing, store triangles as vertex triples directly,
+        // removing another indirection in the shader
+
+        std::vector<Vertex> deindexedVertices;
+        for (std::uint32_t i = 0; i < indices.size(); i += 3)
+        {
+            deindexedVertices.push_back(vertices[indices[i + 0]]);
+            deindexedVertices.push_back(vertices[indices[i + 1]]);
+            deindexedVertices.push_back(vertices[indices[i + 2]]);
+        }
+
+        vertices = std::move(deindexedVertices);
+    }
+
     WGPUBufferDescriptor vertexBufferDescriptor;
     vertexBufferDescriptor.nextInChain = nullptr;
     vertexBufferDescriptor.label = nullptr;
@@ -245,16 +275,6 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
 
     vertexBuffer_ = wgpuDeviceCreateBuffer(device, &vertexBufferDescriptor);
     wgpuQueueWriteBuffer(queue, vertexBuffer_, 0, vertices.data(), vertexBufferDescriptor.size);
-
-    WGPUBufferDescriptor indexBufferDescriptor;
-    indexBufferDescriptor.nextInChain = nullptr;
-    indexBufferDescriptor.label = nullptr;
-    indexBufferDescriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Index | WGPUBufferUsage_Storage;
-    indexBufferDescriptor.size = indices.size() * sizeof(indices[0]);
-    indexBufferDescriptor.mappedAtCreation = false;
-
-    indexBuffer_ = wgpuDeviceCreateBuffer(device, &indexBufferDescriptor);
-    wgpuQueueWriteBuffer(queue, indexBuffer_, 0, indices.data(), indexBufferDescriptor.size);
 
     WGPUBufferDescriptor materialBufferDescriptor;
     materialBufferDescriptor.nextInChain = nullptr;
@@ -276,19 +296,9 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
     bvhNodesBuffer_ = wgpuDeviceCreateBuffer(device, &bvhNodesBufferDescriptor);
     wgpuQueueWriteBuffer(queue, bvhNodesBuffer_, 0, bvh.nodes.data(), bvhNodesBufferDescriptor.size);
 
-    WGPUBufferDescriptor bvhTrianglesBufferDescriptor;
-    bvhTrianglesBufferDescriptor.nextInChain = nullptr;
-    bvhTrianglesBufferDescriptor.label = nullptr;
-    bvhTrianglesBufferDescriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
-    bvhTrianglesBufferDescriptor.size = bvh.triangleIDs.size() * sizeof(bvh.triangleIDs[0]);
-    bvhTrianglesBufferDescriptor.mappedAtCreation = false;
+    vertexCount_ = vertices.size();
 
-    bvhTrianglesBuffer_ = wgpuDeviceCreateBuffer(device, &bvhTrianglesBufferDescriptor);
-    wgpuQueueWriteBuffer(queue, bvhTrianglesBuffer_, 0, bvh.triangleIDs.data(), bvhTrianglesBufferDescriptor.size);
-
-    indexCount_ = indices.size();
-
-    geometryBindGroup_ = createGeometryBindGroup(device, geometryBindGroupLayout, vertexBuffer_, indexBuffer_, bvhNodesBuffer_, bvhTrianglesBuffer_);
+    geometryBindGroup_ = createGeometryBindGroup(device, geometryBindGroupLayout, vertexBuffer_, bvhNodesBuffer_);
     materialBindGroup_ = createMaterialBindGroup(device, materialBindGroupLayout, materialBuffer_);
 }
 
@@ -297,9 +307,7 @@ SceneData::~SceneData()
     wgpuBindGroupRelease(materialBindGroup_);
     wgpuBindGroupRelease(geometryBindGroup_);
 
-    wgpuBufferRelease(bvhTrianglesBuffer_);
     wgpuBufferRelease(bvhNodesBuffer_);
     wgpuBufferRelease(materialBuffer_);
-    wgpuBufferRelease(indexBuffer_);
     wgpuBufferRelease(vertexBuffer_);
 }

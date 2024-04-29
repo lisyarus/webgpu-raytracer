@@ -7,9 +7,7 @@ use random.wgsl;
 @group(0) @binding(0) var<uniform> camera : Camera;
 
 @group(1) @binding(0) var<storage, read> vertices : array<Vertex>;
-@group(1) @binding(1) var<storage, read> indices : array<u32>;
 @group(1) @binding(2) var<storage, read> bvhNodes : array<BVHNode>;
-@group(1) @binding(3) var<storage, read> bvhTriangles : array<u32>;
 
 @group(2) @binding(0) var<storage, read> materials : array<Material>;
 
@@ -22,6 +20,7 @@ struct SceneIntersection
 	vertices : array<Vertex, 3>,
 	uv : vec2f,
 	visitedNodeCount : u32,
+	intersectedNodeCount : u32,
 }
 
 fn intersectScene(ray : Ray) -> SceneIntersection {
@@ -34,6 +33,7 @@ fn intersectScene(ray : Ray) -> SceneIntersection {
 			defaultVertex()
 		),
 		vec2f(0.0),
+		0u,
 		0u
 	);
 
@@ -55,13 +55,15 @@ fn intersectScene(ray : Ray) -> SceneIntersection {
 			continue;
 		}
 
+		result.intersectedNodeCount += 1u;
+
 		if (node.triangleCount > 0) {
 			for (var i = 0u; i < node.triangleCount; i += 1u) {
-				let triangleID = bvhTriangles[node.leftChildOrFirstTriangle + i];
+				let triangleID = node.leftChildOrFirstTriangle + i;
 
-				let v0 = vertices[indices[3 * triangleID + 0u]];
-				let v1 = vertices[indices[3 * triangleID + 1u]];
-				let v2 = vertices[indices[3 * triangleID + 2u]];
+				let v0 = vertices[3 * triangleID + 0u];
+				let v1 = vertices[3 * triangleID + 1u];
+				let v2 = vertices[3 * triangleID + 2u];
 
 				let hit = intersectRayTriangle(ray, v0.position, v1.position, v2.position);
 				if (hit.intersects && hit.distance < result.distance) {
@@ -105,6 +107,7 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 
 	for (var rayDepth = 0u; rayDepth < 4u; rayDepth += 1u) {
 		let intersection = intersectScene(currentRay);
+
 		if (intersection.intersects) {
 			let material = materials[intersection.vertices[0].materialID];
 

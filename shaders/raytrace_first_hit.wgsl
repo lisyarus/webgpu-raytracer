@@ -6,7 +6,6 @@ use raytrace_common.wgsl;
 @group(0) @binding(0) var<uniform> camera : Camera;
 
 @group(1) @binding(0) var<storage, read> vertices : array<Vertex>;
-@group(1) @binding(1) var<storage, read> indices : array<u32>;
 
 @group(2) @binding(0) var<storage, read> materials : array<Material>;
 
@@ -14,10 +13,10 @@ fn raytraceFirstHit(ray : Ray) -> vec3f {
 	var color = vec3f(0.0);
 	var closestHit = TriangleHit(1e30, vec2f(0.0), false);
 
-	for (var i = 0u; i < arrayLength(&indices); i += 3u) {
-		let v0 = vertices[indices[i + 0u]];
-		let v1 = vertices[indices[i + 1u]];
-		let v2 = vertices[indices[i + 2u]];
+	for (var i = 0u; i < arrayLength(&vertices); i += 3u) {
+		let v0 = vertices[i + 0u];
+		let v1 = vertices[i + 1u];
+		let v2 = vertices[i + 2u];
 
 		let hit = intersectRayTriangle(ray, v0.position, v1.position, v2.position);
 		if (hit.intersects && hit.distance < closestHit.distance) {

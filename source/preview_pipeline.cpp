@@ -139,8 +139,7 @@ void renderPreview(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextu
     wgpuRenderPassEncoderSetBindGroup(renderPassEncoder, 1, sceneData.materialBindGroup(), 0, nullptr);
     wgpuRenderPassEncoderSetPipeline(renderPassEncoder, previewPipeline);
     wgpuRenderPassEncoderSetVertexBuffer(renderPassEncoder, 0, sceneData.vertexBuffer(), 0, wgpuBufferGetSize(sceneData.vertexBuffer()));
-    wgpuRenderPassEncoderSetIndexBuffer(renderPassEncoder, sceneData.indexBuffer(), WGPUIndexFormat_Uint32, 0, wgpuBufferGetSize(sceneData.indexBuffer()));
-    wgpuRenderPassEncoderDrawIndexed(renderPassEncoder, sceneData.indexCount(), 1, 0, 0, 0);
+    wgpuRenderPassEncoderDraw(renderPassEncoder, sceneData.vertexCount(), 1, 0, 0);
     wgpuRenderPassEncoderEnd(renderPassEncoder);
     wgpuRenderPassEncoderRelease(renderPassEncoder);
 }
