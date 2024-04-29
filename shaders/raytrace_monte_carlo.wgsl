@@ -28,14 +28,22 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 		let intersection = intersectScene(currentRay);
 
 		if (intersection.intersects) {
-			let material = materials[vertexAttributes[3 * intersection.triangleID].materialID];
+			let v0 = vertexAttributes[3 * intersection.triangleID + 0u];
+			let v1 = vertexAttributes[3 * intersection.triangleID + 1u];
+			let v2 = vertexAttributes[3 * intersection.triangleID + 2u];
 
-			var normal = normalize(cross(intersection.vertices[1] - intersection.vertices[0], intersection.vertices[2] - intersection.vertices[0]));
-			if (dot(normal, currentRay.direction) > 0.0) {
-				normal = -normal;
+			let material = materials[v0.materialID];
+
+			var geometryNormal = normalize(cross(intersection.vertices[1] - intersection.vertices[0], intersection.vertices[2] - intersection.vertices[0]));
+
+			var shadingNormal = normalize(v0.normal + intersection.uv.x * (v1.normal - v0.normal) + intersection.uv.y * (v2.normal - v0.normal));
+
+			if (dot(geometryNormal, currentRay.direction) > 0.0) {
+				geometryNormal = -geometryNormal;
+				shadingNormal = -shadingNormal;
 			}
 
-			let reflectedDirection = cosineHemisphere(randomState, normal);
+			let reflectedDirection = cosineHemisphere(randomState, shadingNormal);
 
 			accumulatedColor += material.emissiveFactor.rgb * colorFactor;
 
