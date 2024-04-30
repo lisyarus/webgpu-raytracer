@@ -23,21 +23,24 @@ fn intersectScene(ray : Ray) -> SceneIntersection {
 	);
 
 	var nodeStack = array<u32, MAX_BVH_STACK_SIZE>();
-	var nodeStackSize = 1u;
-	nodeStack[0u] = 0u;
+	var nodeStackSize = 0u;
+	var currentNodeID = 0u;
 
-	while (nodeStackSize > 0u) {
-		let nodeID = nodeStack[nodeStackSize - 1u];
-		nodeStackSize -= 1u;
-
+	while (true) {
 		result.visitedNodeCount += 1u;
 
-		let node = bvhNodes[nodeID];
+		let node = bvhNodes[currentNodeID];
 
 		let hit = intersectRayAABB(ray, vec3f(node.minX, node.minY, node.minZ), vec3f(node.maxX, node.maxY, node.maxZ));
 
 		if (!hit.intersects || hit.distance > result.distance) {
-			continue;
+			if (nodeStackSize > 0u) {
+				currentNodeID = nodeStack[nodeStackSize - 1u];
+				nodeStackSize -= 1u;
+				continue;
+			} else {
+				break;
+			}
 		}
 
 		result.intersectedNodeCount += 1u;
@@ -61,6 +64,14 @@ fn intersectScene(ray : Ray) -> SceneIntersection {
 					result.uv = hit.uv;
 				}
 			}
+
+			if (nodeStackSize > 0u) {
+				currentNodeID = nodeStack[nodeStackSize - 1u];
+				nodeStackSize -= 1u;
+				continue;
+			} else {
+				break;
+			}
 		} else {
 			let firstChild = node.leftChildOrFirstTriangle & (~BVH_NODE_AXIS_MASK);
 
@@ -70,13 +81,13 @@ fn intersectScene(ray : Ray) -> SceneIntersection {
 
 			if (ray.direction[nodeAxis] > 0.0) {
 				nodeStack[nodeStackSize] = firstChild + 1u;
-				nodeStack[nodeStackSize + 1u] = firstChild;
+				currentNodeID = firstChild;
 			} else {
 				nodeStack[nodeStackSize] = firstChild;
-				nodeStack[nodeStackSize + 1u] = firstChild + 1u;
+				currentNodeID = firstChild + 1u;
 			}
 
-			nodeStackSize += 2u;
+			nodeStackSize += 1u;
 		}
 	}
 
