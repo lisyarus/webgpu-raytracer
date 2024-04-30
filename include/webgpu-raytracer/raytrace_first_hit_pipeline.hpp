@@ -8,16 +8,16 @@
 
 struct RaytraceFirstHitPipeline
 {
-    RaytraceFirstHitPipeline(WGPUDevice device, ShaderRegistry & shaderRegistry, WGPUTextureFormat surfaceFormat,
-        WGPUBindGroupLayout cameraBindGroupLayout, WGPUBindGroupLayout geometryBindGroupLayout, WGPUBindGroupLayout materialBindGroupLayout);
+    RaytraceFirstHitPipeline(WGPUDevice device, ShaderRegistry & shaderRegistry, WGPUBindGroupLayout cameraBindGroupLayout,
+        WGPUBindGroupLayout geometryBindGroupLayout, WGPUBindGroupLayout materialBindGroupLayout, WGPUBindGroupLayout accumulationStorageBindGroupLayout);
     ~RaytraceFirstHitPipeline();
 
-    WGPURenderPipeline renderPipeline() const { return renderPipeline_; }
+    WGPUComputePipeline pipeline() const { return pipeline_; }
 
 private:
     WGPUPipelineLayout pipelineLayout_;
-    WGPURenderPipeline renderPipeline_;
+    WGPUComputePipeline pipeline_;
 };
 
-void renderRaytraceFirstHit(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextureView, bool clear,
-    WGPURenderPipeline raytraceFirstHitPipeline, WGPUBindGroup cameraBindGroup, SceneData const & sceneData);
+void renderRaytraceFirstHit(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextureView, WGPUComputePipeline raytraceMonteCarloPipeline,
+    WGPUBindGroup cameraBindGroup, SceneData const & sceneData, WGPUBindGroup accumulationStorageBindGroup, glm::uvec2 const & screenSize);

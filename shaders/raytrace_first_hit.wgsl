@@ -11,6 +11,8 @@ use raytrace_common.wgsl;
 
 @group(2) @binding(0) var<storage, read> materials : array<Material>;
 
+@group(3) @binding(0) var accumulationTexture : texture_storage_2d<rgba32float, read_write>;
+
 use bvh_traverse.wgsl;
 
 fn raytraceFirstHit(ray : Ray) -> vec3f {
@@ -31,39 +33,15 @@ fn raytraceFirstHit(ray : Ray) -> vec3f {
 	}
 }
 
-struct VertexOut
-{
-	@builtin(position) position : vec4f,
-	@location(0) screenSpacePosition : vec2f,
-}
+@compute @workgroup_size(8, 8)
+fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
+	let screenPosition = 2.0 * vec2f(id.xy) / vec2f(camera.screenSize) - vec2f(1.0);
 
-@vertex
-fn vertexMain(@builtin(vertex_index) index : u32) -> VertexOut {
+	let cameraRay = computeCameraRay(camera.position, camera.viewProjectionInverseMatrix, screenPosition * vec2f(1.0, -1.0));
 
-	// Hard-coded triangle that encloses the whole screen
+	let color = raytraceFirstHit(cameraRay);
 
-	if (index == 0u) {
-		return VertexOut(
-			vec4f(-1.0, -1.0, 0.0, 1.0),
-			vec2f(-1.0, -1.0),
-		);
-	} else if (index == 1u) {
-		return VertexOut(
-			vec4f( 3.0, -1.0, 0.0, 1.0),
-			vec2f( 3.0, -1.0),
-		);
-	} else {
-		return VertexOut(
-			vec4f(-1.0,  3.0, 0.0, 1.0),
-			vec2f(-1.0,  3.0),
-		);
+	if (id.x < camera.screenSize.x && id.y < camera.screenSize.y) {
+		textureStore(accumulationTexture, id.xy, vec4f(color, 1.0));
 	}
-}
-
-@fragment
-fn fragmentMain(in : VertexOut) -> @location(0) vec4f {
-
-	let cameraRay = computeCameraRay(camera.position, camera.viewProjectionInverseMatrix, in.screenSpacePosition);
-
-	return vec4f(raytraceFirstHit(cameraRay), 1.0);
 }

@@ -65,7 +65,7 @@ Renderer::Impl::Impl(WGPUDevice device, WGPUQueue queue, WGPUTextureFormat surfa
     , accumulationStorageBindGroupLayout_(createAccumulationStorageBindGroupLayout(device, accumulationTextureFormat))
     , accumulationSampleBindGroupLayout_(createAccumulationSampleBindGroupLayout(device))
     , previewPipeline_(device, shaderRegistry, surfaceFormat, camera_.bindGroupLayout(), materialBindGroupLayout_)
-    , raytraceFirstHitPipeline_(device, shaderRegistry, accumulationTextureFormat, camera_.bindGroupLayout(), geometryBindGroupLayout_, materialBindGroupLayout_)
+    , raytraceFirstHitPipeline_(device, shaderRegistry, camera_.bindGroupLayout(), geometryBindGroupLayout_, materialBindGroupLayout_, accumulationStorageBindGroupLayout_)
     , raytraceMonteCarloPipeline_(device, shaderRegistry, camera_.bindGroupLayout(), geometryBindGroupLayout_, materialBindGroupLayout_, accumulationStorageBindGroupLayout_)
     , composePipeline_(device, shaderRegistry, surfaceFormat, accumulationSampleBindGroupLayout_)
 {}
@@ -238,8 +238,8 @@ void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & came
         }
 
         if (renderMode_ == Mode::RaytraceFirstHit)
-            renderRaytraceFirstHit(commandEncoder, accumulationTextureView_, needClearAccumulationTexture_,
-                raytraceFirstHitPipeline_.renderPipeline(), camera_.bindGroup(), sceneData);
+            renderRaytraceFirstHit(commandEncoder, accumulationTextureView_, raytraceFirstHitPipeline_.pipeline(),
+                camera_.bindGroup(), sceneData, accumulationStorageBindGroup_, screenSize);
         else if (renderMode_ == Mode::RaytraceMonteCarlo)
             renderRaytraceMonteCarlo(commandEncoder, accumulationTextureView_, raytraceMonteCarloPipeline_.pipeline(),
                 camera_.bindGroup(), sceneData, accumulationStorageBindGroup_, screenSize);
