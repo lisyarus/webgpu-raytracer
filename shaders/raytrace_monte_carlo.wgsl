@@ -50,7 +50,7 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 			colorFactor *= material.baseColorFactor.rgb;
 
 			let intersectionPoint = currentRay.origin + currentRay.direction * intersection.distance;
-			currentRay = Ray(intersectionPoint + reflectedDirection * 1e-4, reflectedDirection);
+			currentRay = Ray(intersectionPoint + geometryNormal * 1e-4, reflectedDirection);
 		} else {
 			accumulatedColor += colorFactor * backgroundColor;
 			break;
