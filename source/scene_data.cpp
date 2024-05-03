@@ -281,6 +281,16 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
         vertexAttributes.push_back(v.attributes);
     }
 
+    std::vector<std::uint32_t> emissiveTriangles;
+    for (std::uint32_t i = 0; i < vertexAttributes.size(); i += 3)
+    {
+        if (glm::lMaxNorm(glm::vec3(materials[vertexAttributes[i].materialID].emissiveFactor)) > 0.f)
+        {
+            emissiveTriangles.push_back(i / 3);
+            std::cout << (i / 3) << std::endl;
+        }
+    }
+
     WGPUBufferDescriptor vertexPositionsBufferDescriptor;
     vertexPositionsBufferDescriptor.nextInChain = nullptr;
     vertexPositionsBufferDescriptor.label = nullptr;
@@ -321,9 +331,19 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
     bvhNodesBuffer_ = wgpuDeviceCreateBuffer(device, &bvhNodesBufferDescriptor);
     wgpuQueueWriteBuffer(queue, bvhNodesBuffer_, 0, bvh.nodes.data(), bvhNodesBufferDescriptor.size);
 
+    WGPUBufferDescriptor emissiveTrianglesBufferDescriptor;
+    emissiveTrianglesBufferDescriptor.nextInChain = nullptr;
+    emissiveTrianglesBufferDescriptor.label = nullptr;
+    emissiveTrianglesBufferDescriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
+    emissiveTrianglesBufferDescriptor.size = emissiveTriangles.size() * sizeof(emissiveTriangles[0]);
+    emissiveTrianglesBufferDescriptor.mappedAtCreation = false;
+
+    emissiveTrianglesBuffer_ = wgpuDeviceCreateBuffer(device, &emissiveTrianglesBufferDescriptor);
+    wgpuQueueWriteBuffer(queue, emissiveTrianglesBuffer_, 0, emissiveTriangles.data(), emissiveTrianglesBufferDescriptor.size);
+
     vertexCount_ = vertices.size();
 
-    geometryBindGroup_ = createGeometryBindGroup(device, geometryBindGroupLayout, vertexPositionsBuffer_, vertexAttributesBuffer_, bvhNodesBuffer_);
+    geometryBindGroup_ = createGeometryBindGroup(device, geometryBindGroupLayout, vertexPositionsBuffer_, vertexAttributesBuffer_, bvhNodesBuffer_, emissiveTrianglesBuffer_);
     materialBindGroup_ = createMaterialBindGroup(device, materialBindGroupLayout, materialBuffer_);
 }
 
@@ -332,6 +352,7 @@ SceneData::~SceneData()
     wgpuBindGroupRelease(materialBindGroup_);
     wgpuBindGroupRelease(geometryBindGroup_);
 
+    wgpuBufferRelease(emissiveTrianglesBuffer_);
     wgpuBufferRelease(bvhNodesBuffer_);
     wgpuBufferRelease(materialBuffer_);
     wgpuBufferRelease(vertexAttributesBuffer_);

@@ -12,7 +12,6 @@ struct SceneData
 
     WGPUBuffer vertexPositionsBuffer() const { return vertexPositionsBuffer_; }
     WGPUBuffer vertexAttributesBuffer() const { return vertexAttributesBuffer_; }
-    WGPUBuffer materialBuffer() const { return materialBuffer_; }
 
     std::uint32_t vertexCount() const { return vertexCount_; }
 
@@ -24,6 +23,7 @@ private:
     WGPUBuffer vertexAttributesBuffer_;
     WGPUBuffer materialBuffer_;
     WGPUBuffer bvhNodesBuffer_;
+    WGPUBuffer emissiveTrianglesBuffer_;
 
     std::uint32_t vertexCount_;
 

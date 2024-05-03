@@ -9,6 +9,7 @@ use random.wgsl;
 @group(1) @binding(0) var<storage, read> vertexPositions : array<vec4f>;
 @group(1) @binding(1) var<storage, read> vertexAttributes : array<Vertex>;
 @group(1) @binding(2) var<storage, read> bvhNodes : array<BVHNode>;
+@group(1) @binding(3) var<storage, read> emissiveTriangles : array<u32>;
 
 @group(2) @binding(0) var<storage, read> materials : array<Material>;
 
@@ -28,6 +29,8 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 		let intersection = intersectScene(currentRay);
 
 		if (intersection.intersects) {
+			let intersectionPoint = currentRay.origin + currentRay.direction * intersection.distance;
+
 			let v0 = vertexAttributes[3 * intersection.triangleID + 0u];
 			let v1 = vertexAttributes[3 * intersection.triangleID + 1u];
 			let v2 = vertexAttributes[3 * intersection.triangleID + 2u];
@@ -43,14 +46,63 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 				shadingNormal = -shadingNormal;
 			}
 
-			let reflectedDirection = cosineHemisphere(randomState, shadingNormal);
+			var newRay = Ray(intersectionPoint + geometryNormal * 1e-4, vec3f(0.0));
+
+			let emissiveTriangleCount = arrayLength(&emissiveTriangles);
+
+			if (uniformUint(randomState, 2u) == 0u) {
+				newRay.direction = cosineHemisphere(randomState, shadingNormal);
+			} else {
+				let lightTriangleIndex = uniformUint(randomState, emissiveTriangleCount);
+				let lightTriangle = emissiveTriangles[lightTriangleIndex];
+
+				var lightUV = vec2f(uniformFloat(randomState), uniformFloat(randomState));
+				if (dot(lightUV, vec2f(1.0)) > 1.0) {
+					lightUV = vec2f(1.0) - lightUV;
+				}
+
+				let lightV0 = vertexPositions[3 * lightTriangle + 0u].xyz;
+				let lightV1 = vertexPositions[3 * lightTriangle + 1u].xyz;
+				let lightV2 = vertexPositions[3 * lightTriangle + 2u].xyz;
+
+				let lightPoint = lightV0 * (1.0 - lightUV.x - lightUV.y) + lightV1 * lightUV.x + lightV2 * lightUV.y;
+
+				newRay.direction = normalize(lightPoint - intersectionPoint);
+			}
+
+			let cosineHemisphereProbability = max(0.0, dot(newRay.direction, shadingNormal)) / PI;
+
+			var directLightSamplingProbability = 0.0;
+
+			for (var i = 0u; i < emissiveTriangleCount; i += 1u) {
+				let lightTriangle = emissiveTriangles[i];
+
+				let v0 = vertexPositions[3 * lightTriangle + 0u].xyz;
+				let v1 = vertexPositions[3 * lightTriangle + 1u].xyz;
+				let v2 = vertexPositions[3 * lightTriangle + 2u].xyz;
+
+				let intersection = intersectRayTriangle(newRay, v0, v1, v2);
+
+				if (intersection.intersects) {
+					let c = cross(v1 - v0, v2 - v0);
+					let l = length(c);
+					let n = c / l;
+
+					let area = l * 0.5;
+
+					directLightSamplingProbability += (1.0 / area) * intersection.distance * intersection.distance / max(1e-8, abs(dot(newRay.direction, n)));
+				}
+			}
+
+			directLightSamplingProbability /= f32(emissiveTriangleCount);
+
+			let totalMISProbability = cosineHemisphereProbability * 0.5 + directLightSamplingProbability * 0.5;
 
 			accumulatedColor += material.emissiveFactor.rgb * colorFactor;
 
-			colorFactor *= material.baseColorFactor.rgb;
+			colorFactor *= (material.baseColorFactor.rgb / PI) * max(0.0, dot(shadingNormal, newRay.direction)) / max(1e-8, totalMISProbability);
 
-			let intersectionPoint = currentRay.origin + currentRay.direction * intersection.distance;
-			currentRay = Ray(intersectionPoint + geometryNormal * 1e-4, reflectedDirection);
+			currentRay = newRay;
 		} else {
 			accumulatedColor += colorFactor * backgroundColor;
 			break;

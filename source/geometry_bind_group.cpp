@@ -2,7 +2,7 @@
 
 WGPUBindGroupLayout createGeometryBindGroupLayout(WGPUDevice device)
 {
-    WGPUBindGroupLayoutEntry layoutEntries[3];
+    WGPUBindGroupLayoutEntry layoutEntries[4];
 
     layoutEntries[0].nextInChain = nullptr;
     layoutEntries[0].binding = 0;
@@ -58,19 +58,37 @@ WGPUBindGroupLayout createGeometryBindGroupLayout(WGPUDevice device)
     layoutEntries[2].storageTexture.format = WGPUTextureFormat_Undefined;
     layoutEntries[2].storageTexture.viewDimension = WGPUTextureViewDimension_Undefined;
 
+    layoutEntries[3].nextInChain = nullptr;
+    layoutEntries[3].binding = 3;
+    layoutEntries[3].visibility = WGPUShaderStage_Compute;
+    layoutEntries[3].buffer.nextInChain = nullptr;
+    layoutEntries[3].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    layoutEntries[3].buffer.hasDynamicOffset = false;
+    layoutEntries[3].buffer.minBindingSize = 0;
+    layoutEntries[3].sampler.nextInChain = nullptr;
+    layoutEntries[3].sampler.type = WGPUSamplerBindingType_Undefined;
+    layoutEntries[3].texture.nextInChain = nullptr;
+    layoutEntries[3].texture.sampleType = WGPUTextureSampleType_Undefined;
+    layoutEntries[3].texture.viewDimension = WGPUTextureViewDimension_Undefined;
+    layoutEntries[3].texture.multisampled = false;
+    layoutEntries[3].storageTexture.nextInChain = nullptr;
+    layoutEntries[3].storageTexture.access = WGPUStorageTextureAccess_Undefined;
+    layoutEntries[3].storageTexture.format = WGPUTextureFormat_Undefined;
+    layoutEntries[3].storageTexture.viewDimension = WGPUTextureViewDimension_Undefined;
+
     WGPUBindGroupLayoutDescriptor bindGroupLayoutDescriptor;
     bindGroupLayoutDescriptor.nextInChain = nullptr;
     bindGroupLayoutDescriptor.label = "geometry";
-    bindGroupLayoutDescriptor.entryCount = 3;
+    bindGroupLayoutDescriptor.entryCount = 4;
     bindGroupLayoutDescriptor.entries = layoutEntries;
 
     return wgpuDeviceCreateBindGroupLayout(device, &bindGroupLayoutDescriptor);
 }
 
 WGPUBindGroup createGeometryBindGroup(WGPUDevice device, WGPUBindGroupLayout bindGroupLayout, WGPUBuffer vertexPositionsBuffer,
-    WGPUBuffer vertexAttributesBuffer,WGPUBuffer bvhNodesBuffer)
+    WGPUBuffer vertexAttributesBuffer,WGPUBuffer bvhNodesBuffer, WGPUBuffer emissiveTrianglesBuffer)
 {
-    WGPUBindGroupEntry entries[3];
+    WGPUBindGroupEntry entries[4];
 
     entries[0].nextInChain = nullptr;
     entries[0].binding = 0;
@@ -96,11 +114,19 @@ WGPUBindGroup createGeometryBindGroup(WGPUDevice device, WGPUBindGroupLayout bin
     entries[2].sampler = nullptr;
     entries[2].textureView = nullptr;
 
+    entries[3].nextInChain = nullptr;
+    entries[3].binding = 3;
+    entries[3].buffer = emissiveTrianglesBuffer;
+    entries[3].offset = 0;
+    entries[3].size = wgpuBufferGetSize(emissiveTrianglesBuffer);
+    entries[3].sampler = nullptr;
+    entries[3].textureView = nullptr;
+
     WGPUBindGroupDescriptor bindGroupDescriptor;
     bindGroupDescriptor.nextInChain = nullptr;
     bindGroupDescriptor.label = "geometry";
     bindGroupDescriptor.layout = bindGroupLayout;
-    bindGroupDescriptor.entryCount = 3;
+    bindGroupDescriptor.entryCount = 4;
     bindGroupDescriptor.entries = entries;
 
     return wgpuDeviceCreateBindGroup(device, &bindGroupDescriptor);
