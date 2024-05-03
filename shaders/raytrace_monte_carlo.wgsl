@@ -115,9 +115,9 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 @compute @workgroup_size(8, 8)
 fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
 	var randomState = RandomState(0);
+	initRandom(&randomState, camera.frameID);
 	initRandom(&randomState, id.x);
 	initRandom(&randomState, id.y);
-	initRandom(&randomState, camera.frameID);
 
 	let screenPosition = 2.0 * vec2f(f32(id.x) + uniformFloat(&randomState), f32(id.y) + uniformFloat(&randomState)) / vec2f(camera.screenSize) - vec2f(1.0);
 
