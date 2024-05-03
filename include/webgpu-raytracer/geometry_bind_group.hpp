@@ -5,4 +5,4 @@
 WGPUBindGroupLayout createGeometryBindGroupLayout(WGPUDevice device);
 
 WGPUBindGroup createGeometryBindGroup(WGPUDevice device, WGPUBindGroupLayout bindGroupLayout, WGPUBuffer vertexPositionsBuffer,
-    WGPUBuffer vertexAttributesBuffer, WGPUBuffer bvhNodesBuffer, WGPUBuffer emissiveTrianglesBuffer);
+    WGPUBuffer vertexAttributesBuffer, WGPUBuffer bvhNodesBuffer, WGPUBuffer emissiveTrianglesBuffer, WGPUBuffer emissiveBvhNodesBuffer);

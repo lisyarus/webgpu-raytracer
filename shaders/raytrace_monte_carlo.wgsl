@@ -10,6 +10,7 @@ use random.wgsl;
 @group(1) @binding(1) var<storage, read> vertexAttributes : array<Vertex>;
 @group(1) @binding(2) var<storage, read> bvhNodes : array<BVHNode>;
 @group(1) @binding(3) var<storage, read> emissiveTriangles : array<u32>;
+@group(1) @binding(4) var<storage, read> emissiveBvhNodes : array<BVHNode>;
 
 @group(2) @binding(0) var<storage, read> materials : array<Material>;
 
@@ -72,29 +73,7 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 
 			let cosineHemisphereProbability = max(0.0, dot(newRay.direction, shadingNormal)) / PI;
 
-			var directLightSamplingProbability = 0.0;
-
-			for (var i = 0u; i < emissiveTriangleCount; i += 1u) {
-				let lightTriangle = emissiveTriangles[i];
-
-				let v0 = vertexPositions[3 * lightTriangle + 0u].xyz;
-				let v1 = vertexPositions[3 * lightTriangle + 1u].xyz;
-				let v2 = vertexPositions[3 * lightTriangle + 2u].xyz;
-
-				let intersection = intersectRayTriangle(newRay, v0, v1, v2);
-
-				if (intersection.intersects) {
-					let c = cross(v1 - v0, v2 - v0);
-					let l = length(c);
-					let n = c / l;
-
-					let area = l * 0.5;
-
-					directLightSamplingProbability += (1.0 / area) * intersection.distance * intersection.distance / max(1e-8, abs(dot(newRay.direction, n)));
-				}
-			}
-
-			directLightSamplingProbability /= f32(emissiveTriangleCount);
+			var directLightSamplingProbability = lightSamplingProbability(newRay);
 
 			let totalMISProbability = cosineHemisphereProbability * 0.5 + directLightSamplingProbability * 0.5;
 

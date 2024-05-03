@@ -24,6 +24,7 @@ private:
     WGPUBuffer materialBuffer_;
     WGPUBuffer bvhNodesBuffer_;
     WGPUBuffer emissiveTrianglesBuffer_;
+    WGPUBuffer emissiveBvhNodesBuffer_;
 
     std::uint32_t vertexCount_;
 

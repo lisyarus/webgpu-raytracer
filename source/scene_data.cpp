@@ -290,6 +290,29 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
         }
     }
 
+    std::vector<AABB> emissiveTriangleAABB(emissiveTriangles.size());
+    for (std::uint32_t i = 0; i < emissiveTriangleAABB.size(); ++i)
+    {
+        auto triangleID = emissiveTriangles[i];
+        emissiveTriangleAABB[i].extend(vertices[3 * triangleID + 0].position);
+        emissiveTriangleAABB[i].extend(vertices[3 * triangleID + 1].position);
+        emissiveTriangleAABB[i].extend(vertices[3 * triangleID + 2].position);
+    }
+
+    BVH emissiveBvh = buildBVH(emissiveTriangleAABB);
+
+    {
+        // Instead of storing triangleID's per light BVH node, store triangles
+        // themselves, thereby removing the need for extra indirection in the shader
+
+        std::vector<std::uint32_t> sortedEmissiveTriangles;
+        for (auto triangleIndex : emissiveBvh.triangleIDs)
+        {
+            sortedEmissiveTriangles.push_back(emissiveTriangles[triangleIndex]);
+        }
+        emissiveTriangles = std::move(sortedEmissiveTriangles);
+    }
+
     WGPUBufferDescriptor vertexPositionsBufferDescriptor;
     vertexPositionsBufferDescriptor.nextInChain = nullptr;
     vertexPositionsBufferDescriptor.label = nullptr;
@@ -340,9 +363,20 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
     emissiveTrianglesBuffer_ = wgpuDeviceCreateBuffer(device, &emissiveTrianglesBufferDescriptor);
     wgpuQueueWriteBuffer(queue, emissiveTrianglesBuffer_, 0, emissiveTriangles.data(), emissiveTrianglesBufferDescriptor.size);
 
+    WGPUBufferDescriptor emissiveBvhNodesBufferDescriptor;
+    emissiveBvhNodesBufferDescriptor.nextInChain = nullptr;
+    emissiveBvhNodesBufferDescriptor.label = nullptr;
+    emissiveBvhNodesBufferDescriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
+    emissiveBvhNodesBufferDescriptor.size = emissiveBvh.nodes.size() * sizeof(emissiveBvh.nodes[0]);
+    emissiveBvhNodesBufferDescriptor.mappedAtCreation = false;
+
+    emissiveBvhNodesBuffer_ = wgpuDeviceCreateBuffer(device, &emissiveBvhNodesBufferDescriptor);
+    wgpuQueueWriteBuffer(queue, emissiveBvhNodesBuffer_, 0, emissiveBvh.nodes.data(), emissiveBvhNodesBufferDescriptor.size);
+
     vertexCount_ = vertices.size();
 
-    geometryBindGroup_ = createGeometryBindGroup(device, geometryBindGroupLayout, vertexPositionsBuffer_, vertexAttributesBuffer_, bvhNodesBuffer_, emissiveTrianglesBuffer_);
+    geometryBindGroup_ = createGeometryBindGroup(device, geometryBindGroupLayout, vertexPositionsBuffer_, vertexAttributesBuffer_,
+        bvhNodesBuffer_, emissiveTrianglesBuffer_, emissiveBvhNodesBuffer_);
     materialBindGroup_ = createMaterialBindGroup(device, materialBindGroupLayout, materialBuffer_);
 }
 
@@ -351,6 +385,7 @@ SceneData::~SceneData()
     wgpuBindGroupRelease(materialBindGroup_);
     wgpuBindGroupRelease(geometryBindGroup_);
 
+    wgpuBufferRelease(emissiveBvhNodesBuffer_);
     wgpuBufferRelease(emissiveTrianglesBuffer_);
     wgpuBufferRelease(bvhNodesBuffer_);
     wgpuBufferRelease(materialBuffer_);
