@@ -287,7 +287,6 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
         if (glm::lMaxNorm(glm::vec3(materials[vertexAttributes[i].materialID].emissiveFactor)) > 0.f)
         {
             emissiveTriangles.push_back(i / 3);
-            std::cout << (i / 3) << std::endl;
         }
     }
 
