@@ -3,6 +3,7 @@
 #include <fstream>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 
 struct ShaderRegistry::Impl
 {
@@ -17,7 +18,12 @@ private:
     std::unordered_map<std::string, std::string> cachedSources_;
     std::unordered_map<std::string, WGPUShaderModule> cachedShaderModules_;
 
-    std::string const & loadSource(std::string const & name);
+    struct LoadingContext
+    {
+        std::unordered_set<std::string> alreadyIncluded;
+    };
+
+    std::string const & loadSource(std::string const & name, LoadingContext & context);
 };
 
 ShaderRegistry::Impl::Impl(std::filesystem::path const & shadersPath, WGPUDevice device)
@@ -36,7 +42,8 @@ WGPUShaderModule ShaderRegistry::Impl::loadShaderModule(std::string const & name
     if (auto it = cachedShaderModules_.find(name); it != cachedShaderModules_.end())
         return it->second;
 
-    auto const & source = loadSource(name + ".wgsl");
+    LoadingContext context;
+    auto const & source = loadSource(name + ".wgsl", context);
 
     WGPUShaderModuleWGSLDescriptor wgslDescriptor;
     wgslDescriptor.chain.next = nullptr;
@@ -54,7 +61,7 @@ WGPUShaderModule ShaderRegistry::Impl::loadShaderModule(std::string const & name
     return shaderModule;
 }
 
-std::string const & ShaderRegistry::Impl::loadSource(std::string const & name)
+std::string const & ShaderRegistry::Impl::loadSource(std::string const & name, LoadingContext & context)
 {
     if (auto it = cachedSources_.find(name); it != cachedSources_.end())
         return it->second;
@@ -81,9 +88,15 @@ std::string const & ShaderRegistry::Impl::loadSource(std::string const & name)
             auto useName = source.substr(useStart + 4, useEnd - (useStart + 4));
 
             useEnd = source.find('\n', useEnd) + 1;
-            auto useSource = loadSource(useName);
+            std::string useSource;
+            if (context.alreadyIncluded.contains(useName))
+                useSource = "\n";
+            else
+                useSource = loadSource(useName, context);
             source.replace(useStart, useEnd - useStart, useSource);
             useStart = useStart + useSource.size();
+
+            context.alreadyIncluded.insert(useName);
         }
         else
         {
