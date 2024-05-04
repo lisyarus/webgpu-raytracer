@@ -3,6 +3,7 @@ use geometry.wgsl;
 use material.wgsl;
 use raytrace_common.wgsl;
 use random.wgsl;
+use brdf.wgsl;
 
 @group(0) @binding(0) var<uniform> camera : Camera;
 
@@ -38,6 +39,10 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 
 			let material = materials[v0.materialID];
 
+			let baseColor = material.baseColorFactor.rgb;
+			let metallic = material.metallicRoughnessFactor.b;
+			let roughness = max(0.05, material.metallicRoughnessFactor.g);
+
 			var geometryNormal = normalize(cross(intersection.vertices[1] - intersection.vertices[0], intersection.vertices[2] - intersection.vertices[0]));
 
 			var shadingNormal = normalize(v0.normal + intersection.uv.x * (v1.normal - v0.normal) + intersection.uv.y * (v2.normal - v0.normal));
@@ -51,8 +56,21 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 
 			let emissiveTriangleCount = arrayLength(&emissiveTriangles);
 
-			if (uniformUint(randomState, 2u) == 0u) {
+			// roughness = 0, metallic = 0 : vndf + cosine + light
+			// roughness = 0, metallic = 1 : vndf
+			// roughness = 1, metallic = 0 : cosine + light
+			// roughness = 1, metallic = 1 : vndf
+
+			let cosineSamplingWeight = (1.0 - metallic) * mix(1.0 / 3.0, 0.5, roughness);
+			let lightSamplingWeight = (1.0 - metallic) * mix(1.0 / 3.0, 0.5, roughness);
+			let vndfSamplingWeight = 1.0 - cosineSamplingWeight - lightSamplingWeight;
+
+			let strategyPick = uniformFloat(randomState);
+
+			if (strategyPick < cosineSamplingWeight) {
 				newRay.direction = cosineHemisphere(randomState, shadingNormal);
+			} else if (strategyPick < cosineSamplingWeight + vndfSamplingWeight) {
+				newRay.direction = sampleVNDF(randomState, shadingNormal, -currentRay.direction, roughness);
 			} else {
 				let lightTriangleIndex = uniformUint(randomState, emissiveTriangleCount);
 				let lightTriangle = emissiveTriangles[lightTriangleIndex];
@@ -72,14 +90,18 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 			}
 
 			let cosineHemisphereProbability = max(0.0, dot(newRay.direction, shadingNormal)) / PI;
+			let vndfSamplingProbability = probabilityVNDF(shadingNormal, -currentRay.direction, newRay.direction, roughness);
+			let directLightSamplingProbability = lightSamplingProbability(newRay);
 
-			var directLightSamplingProbability = lightSamplingProbability(newRay);
-
-			let totalMISProbability = cosineHemisphereProbability * 0.5 + directLightSamplingProbability * 0.5;
+			let totalMISProbability = cosineHemisphereProbability * cosineSamplingWeight
+				+ vndfSamplingProbability * vndfSamplingWeight
+				+ directLightSamplingProbability * lightSamplingWeight;
 
 			accumulatedColor += material.emissiveFactor.rgb * colorFactor;
 
-			colorFactor *= (material.baseColorFactor.rgb / PI) * max(0.0, dot(shadingNormal, newRay.direction)) / max(1e-8, totalMISProbability);
+			let brdf = cookTorranceGGX(shadingNormal, newRay.direction, -currentRay.direction, baseColor, metallic, roughness);
+
+			colorFactor *= brdf * max(0.0, dot(shadingNormal, newRay.direction)) / max(1e-8, totalMISProbability);
 
 			currentRay = newRay;
 		} else {
