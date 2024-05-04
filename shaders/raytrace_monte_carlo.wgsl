@@ -47,6 +47,7 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 
 			var shadingNormal = normalize(v0.normal + intersection.uv.x * (v1.normal - v0.normal) + intersection.uv.y * (v2.normal - v0.normal));
 
+			// Invert the normals if we're looking at the surface from the inside
 			if (dot(geometryNormal, currentRay.direction) > 0.0) {
 				geometryNormal = -geometryNormal;
 				shadingNormal = -shadingNormal;
@@ -56,10 +57,11 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 
 			let emissiveTriangleCount = arrayLength(&emissiveTriangles);
 
-			// roughness = 0, metallic = 0 : vndf + cosine + light
-			// roughness = 0, metallic = 1 : vndf
-			// roughness = 1, metallic = 0 : cosine + light
-			// roughness = 1, metallic = 1 : vndf
+			// MIS weights empirically chosen depending on what works better for which materials:
+			//     roughness = 0, metallic = 0 : vndf + cosine + light
+			//     roughness = 0, metallic = 1 : vndf
+			//     roughness = 1, metallic = 0 : cosine + light
+			//     roughness = 1, metallic = 1 : vndf
 
 			let cosineSamplingWeight = (1.0 - metallic) * mix(1.0 / 3.0, 0.5, roughness);
 			let lightSamplingWeight = (1.0 - metallic) * mix(1.0 / 3.0, 0.5, roughness);
@@ -93,6 +95,8 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 			let vndfSamplingProbability = probabilityVNDF(shadingNormal, -currentRay.direction, newRay.direction, roughness);
 			let directLightSamplingProbability = lightSamplingProbability(newRay);
 
+			// To properly apply MIS, one needs to compute the total probability of generating a reflected direction
+			// using _all_possible_strategies_, see https://lisyarus.github.io/blog/posts/multiple-importance-sampling.html
 			let totalMISProbability = cosineHemisphereProbability * cosineSamplingWeight
 				+ vndfSamplingProbability * vndfSamplingWeight
 				+ directLightSamplingProbability * lightSamplingWeight;

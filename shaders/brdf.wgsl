@@ -5,6 +5,8 @@ fn fresnel(f0 : vec3f, f90 : vec3f, VdotH : f32) -> vec3f {
 	return f0 + (f90 - f0) * pow(max(0.0, 1.0 - VdotH), 5.0);
 }
 
+// Cook-Torrance BRDF with GGX normal distribution & Smith geometry term
+// See https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation
 fn cookTorranceGGX(N : vec3f, L : vec3f, V : vec3f, baseColor : vec3f, metallic : f32, roughness : f32) -> vec3f {
 	let H = normalize(L + V);
 
@@ -39,6 +41,8 @@ fn cookTorranceGGX(N : vec3f, L : vec3f, V : vec3f, baseColor : vec3f, metallic 
 	return resultBrdf;
 }
 
+// Reflected direction sampling algorithm well-suited for the Cook-Torrance specular term, see
+//    Eric Heitz, Sampling the GGX Distribution of Visible Normals (2018)
 fn sampleVNDF(randomState : ptr<function, RandomState>, N : vec3f, V : vec3f, roughness : f32) -> vec3f {
 	let localBasis = completeBasis(N);
 
