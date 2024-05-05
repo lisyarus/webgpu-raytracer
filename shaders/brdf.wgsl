@@ -7,7 +7,7 @@ fn fresnel(f0 : vec3f, f90 : vec3f, VdotH : f32) -> vec3f {
 
 // Cook-Torrance BRDF with GGX normal distribution & Smith geometry term
 // See https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#appendix-b-brdf-implementation
-fn cookTorranceGGX(N : vec3f, L : vec3f, V : vec3f, baseColor : vec3f, metallic : f32, roughness : f32) -> vec3f {
+fn cookTorranceGGX(N : vec3f, L : vec3f, V : vec3f, baseColor : vec3f, metallic : f32, roughness : f32, ior : f32) -> vec3f {
 	let H = normalize(L + V);
 
 	let VdotN = dot(V, N);
@@ -32,7 +32,9 @@ fn cookTorranceGGX(N : vec3f, L : vec3f, V : vec3f, baseColor : vec3f, metallic 
 	let metallicFresnel = fresnel(baseColor, vec3f(1.0), VdotH);
 	let metallicBrdf = metallicFresnel * specularBrdf;
 
-	let dielectricFresnel = fresnel(vec3f(0.04), vec3f(1.0), VdotH);
+	let f0 = pow((1.0 - ior) / (1.0 + ior), 2.0);
+
+	let dielectricFresnel = fresnel(vec3f(f0), vec3f(1.0), VdotH);
 	let diffuseBrdf = baseColor / PI;
 	let dielectricBrdf = mix(diffuseBrdf, specularBrdf, dielectricFresnel);
 

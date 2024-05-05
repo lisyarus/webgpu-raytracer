@@ -91,7 +91,7 @@ namespace glTF
         glm::vec3 emissiveFactor;
         std::optional<std::uint32_t> emissiveTexture;
 
-        bool cloth;
+        float ior;
     };
 
     struct Primitive

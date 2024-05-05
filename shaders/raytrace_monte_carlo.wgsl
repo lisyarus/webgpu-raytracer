@@ -40,8 +40,9 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 			let material = materials[v0.materialID];
 
 			let baseColor = material.baseColorFactor.rgb;
-			let metallic = material.metallicRoughnessFactor.b;
-			let roughness = max(0.05, material.metallicRoughnessFactor.g);
+			let metallic = material.metallicRoughnessFactorAndIor.b;
+			let roughness = max(0.05, material.metallicRoughnessFactorAndIor.g);
+			let ior = material.metallicRoughnessFactorAndIor.a;
 
 			var geometryNormal = normalize(cross(intersection.vertices[1] - intersection.vertices[0], intersection.vertices[2] - intersection.vertices[0]));
 
@@ -103,7 +104,7 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 
 			accumulatedColor += material.emissiveFactor.rgb * colorFactor;
 
-			let brdf = cookTorranceGGX(shadingNormal, newRay.direction, -currentRay.direction, baseColor, metallic, roughness);
+			let brdf = cookTorranceGGX(shadingNormal, newRay.direction, -currentRay.direction, baseColor, metallic, roughness, ior);
 
 			colorFactor *= brdf * max(0.0, dot(shadingNormal, newRay.direction)) / max(1e-8, totalMISProbability);
 
