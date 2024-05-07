@@ -24,7 +24,7 @@ fn vertexMain(in : VertexInput) -> VertexOutput {
 	return VertexOutput(
 		camera.viewProjectionMatrix * vec4f(in.position, 1.0),
 		in.normal,
-		material.baseColorFactor.rgb,
+		material.baseColorFactorAndTransmission.rgb,
 		material.emissiveFactor.rgb,
 	);
 }

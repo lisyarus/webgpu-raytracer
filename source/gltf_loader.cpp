@@ -166,6 +166,8 @@ namespace glTF
             material.metallicFactor = 1.f;
             material.roughnessFactor = 1.f;
             material.emissiveFactor = glm::vec3(0.f);
+            material.ior = 1.5f;
+            material.transmission = 0.f;
 
             if (materialIn.HasMember("pbrMetallicRoughness"))
             {
@@ -204,8 +206,6 @@ namespace glTF
             if (materialIn.HasMember("emissiveTexture"))
                 material.emissiveTexture = materialIn["emissiveTexture"]["index"].GetUint();
 
-            material.ior = 1.5f;
-
             if (materialIn.HasMember("extensions"))
             {
                 auto const & extensions = materialIn["extensions"];
@@ -218,6 +218,11 @@ namespace glTF
                 if (extensions.HasMember("KHR_materials_ior"))
                 {
                     material.ior = extensions["KHR_materials_ior"]["ior"].GetFloat();
+                }
+
+                if (extensions.HasMember("KHR_materials_transmission"))
+                {
+                    material.transmission = extensions["KHR_materials_transmission"]["transmissionFactor"].GetFloat();
                 }
             }
         }

@@ -92,6 +92,8 @@ namespace glTF
         std::optional<std::uint32_t> emissiveTexture;
 
         float ior;
+
+        float transmission;
     };
 
     struct Primitive

@@ -28,7 +28,7 @@ namespace
 
     struct Material
     {
-        glm::vec4 baseColorFactor;
+        glm::vec4 baseColorFactorAndTransmission;
         glm::vec4 metallicRoughnessFactorAndIor;
         glm::vec4 emissiveFactor;
     };
@@ -151,7 +151,7 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
 
     // Add default rough diffuse material
     materials.push_back({
-        .baseColorFactor = glm::vec4(1.f),
+        .baseColorFactorAndTransmission = glm::vec4(1.f, 1.f, 1.f, 0.f),
         .metallicRoughnessFactorAndIor = glm::vec4(1.f, 1.f, 0.f, 1.5f),
         .emissiveFactor = glm::vec4(1.f),
     });
@@ -228,7 +228,7 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
     for (auto const & materialIn : asset.materials)
     {
         auto & material = materials.emplace_back();
-        material.baseColorFactor = materialIn.baseColorFactor;
+        material.baseColorFactorAndTransmission = glm::vec4(glm::vec3(materialIn.baseColorFactor), materialIn.transmission);
         material.metallicRoughnessFactorAndIor = glm::vec4(1.f, materialIn.roughnessFactor, materialIn.metallicFactor, materialIn.ior);
         material.emissiveFactor = glm::vec4(materialIn.emissiveFactor, 1.f);
     }

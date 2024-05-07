@@ -72,6 +72,5 @@ fn intersectRayAABB(ray : Ray, aabbMin : vec3f, aabbMax : vec3f) -> AABBHit {
 	let t0 = max(tX.x, max(tY.x, tZ.x));
 	let t1 = min(tX.y, min(tY.y, tZ.y));
 
-	//return AABBHit(t0, tY.x < tY.y);
 	return AABBHit(max(t0, 0.0), t1 >= t0 && t1 >= 0.0);
 }

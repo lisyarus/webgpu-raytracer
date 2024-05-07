@@ -27,7 +27,7 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 
 	var currentRay = ray;
 
-	for (var rayDepth = 0u; rayDepth < 4u; rayDepth += 1u) {
+	for (var rayDepth = 0u; rayDepth < 8u; rayDepth += 1u) {
 		let intersection = intersectScene(currentRay);
 
 		if (intersection.intersects) {
@@ -39,10 +39,11 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 
 			let material = materials[v0.materialID];
 
-			let baseColor = material.baseColorFactor.rgb;
+			let baseColor = material.baseColorFactorAndTransmission.rgb;
 			let metallic = material.metallicRoughnessFactorAndIor.b;
 			let roughness = max(0.05, material.metallicRoughnessFactorAndIor.g);
-			let ior = material.metallicRoughnessFactorAndIor.a;
+			var ior = material.metallicRoughnessFactorAndIor.a;
+			let transmission = material.baseColorFactorAndTransmission.a;
 
 			var geometryNormal = normalize(cross(intersection.vertices[1] - intersection.vertices[0], intersection.vertices[2] - intersection.vertices[0]));
 
@@ -52,21 +53,29 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 			if (dot(geometryNormal, currentRay.direction) > 0.0) {
 				geometryNormal = -geometryNormal;
 				shadingNormal = -shadingNormal;
+				ior = 1.0 / ior;
 			}
 
-			var newRay = Ray(intersectionPoint + geometryNormal * 1e-4, vec3f(0.0));
-
-			let emissiveTriangleCount = arrayLength(&emissiveTriangles);
+			var newRay = Ray(intersectionPoint, vec3f(0.0));
 
 			// MIS weights empirically chosen depending on what works better for which materials:
 			//     roughness = 0, metallic = 0 : vndf + cosine + light
 			//     roughness = 0, metallic = 1 : vndf
 			//     roughness = 1, metallic = 0 : cosine + light
 			//     roughness = 1, metallic = 1 : vndf
+			//                transmission = 1 : vndf + transmission vndf
 
-			let cosineSamplingWeight = (1.0 - metallic) * mix(1.0 / 3.0, 0.5, roughness);
-			let lightSamplingWeight = (1.0 - metallic) * mix(1.0 / 3.0, 0.5, roughness);
-			let vndfSamplingWeight = 1.0 - cosineSamplingWeight - lightSamplingWeight;
+			var cosineSamplingWeight = (1.0 - metallic) * (1.0 - transmission);
+			var lightSamplingWeight = (1.0 - metallic) * (1.0 - transmission);
+			var vndfSamplingWeight = 1.0 - (1.0 - metallic) * roughness;
+			var vndfTransmissionWeight = transmission;
+
+			var sumSamplingWeights = cosineSamplingWeight + lightSamplingWeight + vndfSamplingWeight + vndfTransmissionWeight;
+
+			cosineSamplingWeight /= sumSamplingWeights;
+			lightSamplingWeight /= sumSamplingWeights;
+			vndfSamplingWeight /= sumSamplingWeights;
+			vndfTransmissionWeight /= sumSamplingWeights;
 
 			let strategyPick = uniformFloat(randomState);
 
@@ -74,7 +83,10 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 				newRay.direction = cosineHemisphere(randomState, shadingNormal);
 			} else if (strategyPick < cosineSamplingWeight + vndfSamplingWeight) {
 				newRay.direction = sampleVNDF(randomState, shadingNormal, -currentRay.direction, roughness);
+			} else if (strategyPick < cosineSamplingWeight + vndfSamplingWeight + vndfTransmissionWeight) {
+				newRay.direction = sampleTransmissionVNDF(randomState, shadingNormal, -currentRay.direction, roughness);
 			} else {
+				let emissiveTriangleCount = arrayLength(&emissiveTriangles);
 				let lightTriangleIndex = uniformUint(randomState, emissiveTriangleCount);
 				let lightTriangle = emissiveTriangles[lightTriangleIndex];
 
@@ -94,19 +106,25 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 
 			let cosineHemisphereProbability = max(0.0, dot(newRay.direction, shadingNormal)) / PI;
 			let vndfSamplingProbability = probabilityVNDF(shadingNormal, -currentRay.direction, newRay.direction, roughness);
+			let vndfTransmissionProbability = probabilityTransmissionVNDF(shadingNormal, -currentRay.direction, newRay.direction, roughness);
 			let directLightSamplingProbability = lightSamplingProbability(newRay);
 
 			// To properly apply MIS, one needs to compute the total probability of generating a reflected direction
 			// using _all_possible_strategies_, see https://lisyarus.github.io/blog/posts/multiple-importance-sampling.html
-			let totalMISProbability = cosineHemisphereProbability * cosineSamplingWeight
+			var totalMISProbability = cosineHemisphereProbability * cosineSamplingWeight
 				+ vndfSamplingProbability * vndfSamplingWeight
+				+ vndfTransmissionProbability * vndfTransmissionWeight
 				+ directLightSamplingProbability * lightSamplingWeight;
 
 			accumulatedColor += material.emissiveFactor.rgb * colorFactor;
 
-			let brdf = cookTorranceGGX(shadingNormal, newRay.direction, -currentRay.direction, baseColor, metallic, roughness, ior);
+			let brdf = cookTorranceGGX(shadingNormal, newRay.direction, -currentRay.direction, baseColor, metallic, roughness, ior, transmission);
 
-			colorFactor *= brdf * max(0.0, dot(shadingNormal, newRay.direction)) / max(1e-8, totalMISProbability);
+			colorFactor *= brdf * abs(dot(shadingNormal, newRay.direction)) / max(1e-8, totalMISProbability);
+
+			// Offset ray origin to side of the surface where new ray direction is pointing to,
+			// to prevent self-intersection artifacts
+			newRay.origin += sign(dot(newRay.direction, geometryNormal)) * geometryNormal * 1e-4;
 
 			currentRay = newRay;
 		} else {

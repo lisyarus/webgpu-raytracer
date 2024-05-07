@@ -29,7 +29,7 @@ fn raytraceFirstHit(ray : Ray) -> vec3f {
 		let lightDirection = normalize(vec3f(1.0, 3.0, 2.0));
 		let material = materials[vertexAttributes[3 * intersection.triangleID].materialID];
 
-		return 0.5 * material.baseColorFactor.rgb * (0.5 + 0.5 * dot(normal, lightDirection)) + material.emissiveFactor.rgb;
+		return 0.5 * material.baseColorFactorAndTransmission.rgb * (0.5 + 0.5 * dot(normal, lightDirection)) + material.emissiveFactor.rgb;
 	} else {
 		return vec3f(0.0);
 	}
