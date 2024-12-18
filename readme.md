@@ -1,6 +1,4 @@
-![](screenshots/1_small.png)
-![](screenshots/2_small.png)
-![](screenshots/3_small.png)
+![](screenshots/combined.png)
 
 # About
 
@@ -31,8 +29,8 @@ If the camera changes in raytracing mode, the raytracing result is discarded and
 * Raytracing uses multiple importance sampling (MIS) between several direction sampling strategies: cosine-weighted (good for diffuse materials), direct light sampling (good for rough materials), VNDF sampling (good for smooth materials), and transmission sampling (good for transparent materials). See also [my article](https://lisyarus.github.io/blog/posts/multiple-importance-sampling.html) explaining how MIS works.
 * The material used is the standard glTF Cook-Torrance GGX with a thin-walled transmission as described by [KHR_materials_transmission](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_transmission/README.md).
 * [VNDF](https://gpuopen.com/download/publications/Bounded_VNDF_Sampling_for_Smith-GGX_Reflections.pdf) normals distribution is used to improve convergence.
-* Refractive materials are not supported. I tried to incorporate refractions into VNDF sampling but never managed to figure it out; this work resides in a separate `vndf-refraction-wip` branch.
-* NB: the `use camera.wgsl;` construct in the shaders is not standard WGSL, -- instead, a rudimentary [shader importing mechanism](source/shader_registry.cpp) is implemented in this project.
+* Refractive materials are not supported. I tried to incorporate refractions into VNDF sampling but never managed to figure it out; this work resides in a separate [`vndf-refraction-wip`](https://github.com/lisyarus/webgpu-raytracer/tree/vndf-refraction-wip) branch.
+* NB: the `use camera.wgsl;` construct in the shaders is not standard WGSL, - instead, a rudimentary [shader importing mechanism](source/shader_registry.cpp) is implemented in this project.
 
 # Building
 
