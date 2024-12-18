@@ -31,6 +31,7 @@ namespace
         glm::vec4 baseColorFactorAndTransmission;
         glm::vec4 metallicRoughnessFactorAndIor;
         glm::vec4 emissiveFactor;
+        glm::vec4 attenuationColorAndDistance; // distance = 0 means thin-walled material
     };
 
     void readIndices(glTF::Asset const & asset, glTF::Accessor const & indexAccessor, std::vector<std::uint32_t> & indices, std::uint32_t baseVertex)
@@ -154,6 +155,7 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
         .baseColorFactorAndTransmission = glm::vec4(1.f, 1.f, 1.f, 0.f),
         .metallicRoughnessFactorAndIor = glm::vec4(1.f, 1.f, 0.f, 1.5f),
         .emissiveFactor = glm::vec4(1.f),
+        .attenuationColorAndDistance = glm::vec4(0.f),
     });
 
     for (auto const & node : asset.nodes)
@@ -231,6 +233,7 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
         material.baseColorFactorAndTransmission = glm::vec4(glm::vec3(materialIn.baseColorFactor), materialIn.transmission);
         material.metallicRoughnessFactorAndIor = glm::vec4(1.f, materialIn.roughnessFactor, materialIn.metallicFactor, materialIn.ior);
         material.emissiveFactor = glm::vec4(materialIn.emissiveFactor, 1.f);
+        material.attenuationColorAndDistance = glm::vec4(materialIn.attenuationColor, materialIn.thinWalled ? 0.f : materialIn.attenuationDistance);
     }
 
     std::vector<AABB> triangleAABB(indices.size() / 3);

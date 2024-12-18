@@ -94,6 +94,9 @@ namespace glTF
         float ior;
 
         float transmission;
+        bool thinWalled;
+        float attenuationDistance;
+        glm::vec3 attenuationColor;
     };
 
     struct Primitive

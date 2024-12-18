@@ -168,6 +168,9 @@ namespace glTF
             material.emissiveFactor = glm::vec3(0.f);
             material.ior = 1.5f;
             material.transmission = 0.f;
+            material.thinWalled = true;
+            material.attenuationDistance = std::numeric_limits<float>::infinity();
+            material.attenuationColor = glm::vec3(1.f);
 
             if (materialIn.HasMember("pbrMetallicRoughness"))
             {
@@ -223,6 +226,24 @@ namespace glTF
                 if (extensions.HasMember("KHR_materials_transmission"))
                 {
                     material.transmission = extensions["KHR_materials_transmission"]["transmissionFactor"].GetFloat();
+                }
+
+                if (extensions.HasMember("KHR_materials_volume"))
+                {
+                    auto const & extension = extensions["KHR_materials_volume"];
+
+                    if (extension.HasMember("thicknessFactor"))
+                        material.thinWalled = (extension["thicknessFactor"].GetFloat() == 0.f);
+
+                    if (extension.HasMember("attenuationDistance"))
+                        material.attenuationDistance = extension["attenuationDistance"].GetFloat();
+
+                    if (extension.HasMember("attenuationColor"))
+                    {
+                        auto const & attenuationColor = extension["attenuationColor"].GetArray();
+                        for (int i = 0; i < 3; ++i)
+                            material.attenuationColor[i] = attenuationColor[i].GetFloat();
+                    }
                 }
             }
         }
