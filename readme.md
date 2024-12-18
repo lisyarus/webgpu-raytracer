@@ -20,7 +20,7 @@ Here are all the controls:
 * `[W][A][S][D]`: move the camera
 * `[SPACE]`: activate raytracing
 
-If the camera changes in raytracing mode, the raytracing result is discarded and the preview mode is activated again.
+If the camera changes in raytracing mode, the raytracing result is discarded and the preview mode is activated again (i.e. there's no temporal reprojection in this case).
 
 # Raytracer
 
@@ -39,7 +39,7 @@ To build this project, you need
 * [SDL2](https://www.libsdl.org/) (you can probably install it via your system's package manager)
 * [wgpu-native](https://github.com/gfx-rs/wgpu-native)
 
-To install wgpu-native, download [some release archive](https://github.com/gfx-rs/wgpu-native/releases) for your platform, and unpack it somewhere. ~~This project was built with the [v0.19.4.1](https://github.com/gfx-rs/wgpu-native/releases/tag/v0.19.4.1) release, and might not work with older versions.~~
+To install wgpu-native, download [some release archive](https://github.com/gfx-rs/wgpu-native/releases) for your platform, and unpack it somewhere. This project was built with the [v0.19.4.1](https://github.com/gfx-rs/wgpu-native/releases/tag/v0.19.4.1) release, and might not work with older versions.
 
 Don't forget to check out submodules:
 * [glm](https://github.com/g-truc/glm) for vector & matrix maths
@@ -52,8 +52,6 @@ Then, follow the usual steps for building something with CMake:
 * Create a build directory
 * In the build directory, run `cmake <path-to-webgpu-demo-source> -DWGPU_NATIVE_ROOT=<path-to-unpacked-wgpu-native>`
 * Build the project: `cmake --build .`
-
-Note that in case of MacOS, linking dynamic wgpu-native library (`libwgpu_native.dylib`) doesn't fully work right now due to a [bug](https://github.com/gfx-rs/wgpu-native/issues/329). The static version (`libwgpu_native.a`) works, though, so you can simply delete the dynamic library so that CMake uses the static one instead.
 
 # SDL2-wgpu
 
