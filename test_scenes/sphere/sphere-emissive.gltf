@@ -944,7 +944,7 @@
     "buffers" : [
         {
             "byteLength" : 165444,
-            "uri" : "sphere-emissive.bin"
+            "uri" : "sphere.bin"
         }
     ]
 }

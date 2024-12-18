@@ -4,9 +4,8 @@
         "version" : "2.0"
     },
     "extensionsUsed" : [
-        "KHR_materials_specular",
-        "KHR_materials_ior",
-        "KHR_materials_emissive_strength"
+        "KHR_materials_emissive_strength",
+        "KHR_materials_transmission"
     ],
     "scene" : 0,
     "scenes" : [
@@ -73,8 +72,8 @@
             ],
             "scale" : [
                 2,
-                2.000000238418579,
-                2.000000238418579
+                2,
+                2
             ],
             "translation" : [
                 0,
@@ -133,17 +132,28 @@
         },
         {
             "mesh" : 6,
-            "name" : "Icosphere",
+            "name" : "dragon",
+            "rotation" : [
+                0.6972933411598206,
+                0.11739720404148102,
+                -0.11739720404148102,
+                0.697293221950531
+            ],
+            "scale" : [
+                0.38668549060821533,
+                0.38668549060821533,
+                0.38668549060821533
+            ],
             "translation" : [
                 0,
-                -1,
+                -0.427590936422348,
                 0
             ]
         }
     ],
     "cameras" : [
         {
-            "name" : "Camera.001",
+            "name" : "Camera.005",
             "perspective" : {
                 "aspectRatio" : 1.7777777777777777,
                 "yfov" : 0.9272952079772949,
@@ -156,19 +166,7 @@
     "materials" : [
         {
             "doubleSided" : true,
-            "extensions" : {
-                "KHR_materials_specular" : {
-                    "specularColorFactor" : [
-                        0,
-                        0,
-                        0
-                    ]
-                },
-                "KHR_materials_ior" : {
-                    "ior" : 1.4500000476837158
-                }
-            },
-            "name" : "Wall",
+            "name" : "Wall.001",
             "pbrMetallicRoughness" : {
                 "baseColorFactor" : [
                     0.800000011920929,
@@ -181,19 +179,7 @@
         },
         {
             "doubleSided" : true,
-            "extensions" : {
-                "KHR_materials_specular" : {
-                    "specularColorFactor" : [
-                        0,
-                        0,
-                        0
-                    ]
-                },
-                "KHR_materials_ior" : {
-                    "ior" : 1.4500000476837158
-                }
-            },
-            "name" : "Blue wall",
+            "name" : "Blue wall.001",
             "pbrMetallicRoughness" : {
                 "baseColorFactor" : [
                     0.20000000298023224,
@@ -206,19 +192,7 @@
         },
         {
             "doubleSided" : true,
-            "extensions" : {
-                "KHR_materials_specular" : {
-                    "specularColorFactor" : [
-                        0,
-                        0,
-                        0
-                    ]
-                },
-                "KHR_materials_ior" : {
-                    "ior" : 1.4500000476837158
-                }
-            },
-            "name" : "Red wall",
+            "name" : "Red wall.001",
             "pbrMetallicRoughness" : {
                 "baseColorFactor" : [
                     0.800000011920929,
@@ -241,7 +215,7 @@
                     "emissiveStrength" : 5
                 }
             },
-            "name" : "Light",
+            "name" : "Light.001",
             "pbrMetallicRoughness" : {
                 "baseColorFactor" : [
                     0,
@@ -249,26 +223,33 @@
                     0,
                     1
                 ],
-                "metallicFactor" : 0
+                "metallicFactor" : 0,
+                "roughnessFactor" : 0
             }
         },
         {
             "doubleSided" : true,
-            "name" : "Material.001",
+            "extensions" : {
+                "KHR_materials_transmission" : {
+                    "transmissionFactor" : 1
+                }
+            },
+            "name" : "Material.004",
             "pbrMetallicRoughness" : {
                 "baseColorFactor" : [
-                    0.20000000298023224,
-                    0.800000011920929,
-                    0.20000000298023224,
+                    0.9440000057220459,
+                    0.7760000228881836,
+                    0.37299999594688416,
                     1
                 ],
-                "roughnessFactor" : 0
+                "metallicFactor" : 0,
+                "roughnessFactor" : 0.20000000298023224
             }
         }
     ],
     "meshes" : [
         {
-            "name" : "Plane",
+            "name" : "Plane.007",
             "primitives" : [
                 {
                     "attributes" : {
@@ -283,7 +264,7 @@
             ]
         },
         {
-            "name" : "Plane.001",
+            "name" : "Plane.008",
             "primitives" : [
                 {
                     "attributes" : {
@@ -298,7 +279,7 @@
             ]
         },
         {
-            "name" : "Plane.002",
+            "name" : "Plane.009",
             "primitives" : [
                 {
                     "attributes" : {
@@ -313,7 +294,7 @@
             ]
         },
         {
-            "name" : "Plane.003",
+            "name" : "Plane.010",
             "primitives" : [
                 {
                     "attributes" : {
@@ -328,7 +309,7 @@
             ]
         },
         {
-            "name" : "Plane.004",
+            "name" : "Plane.011",
             "primitives" : [
                 {
                     "attributes" : {
@@ -343,7 +324,7 @@
             ]
         },
         {
-            "name" : "Plane.005",
+            "name" : "Plane.012",
             "primitives" : [
                 {
                     "attributes" : {
@@ -358,16 +339,14 @@
             ]
         },
         {
-            "name" : "Icosphere",
+            "name" : "dragon",
             "primitives" : [
                 {
                     "attributes" : {
                         "POSITION" : 25,
-                        "NORMAL" : 26,
-                        "TANGENT" : 27,
-                        "TEXCOORD_0" : 28
+                        "NORMAL" : 26
                     },
-                    "indices" : 29,
+                    "indices" : 27,
                     "material" : 4
                 }
             ]
@@ -587,41 +566,29 @@
         {
             "bufferView" : 25,
             "componentType" : 5126,
-            "count" : 63,
+            "count" : 49861,
             "max" : [
-                0.9510578513145447,
-                1,
-                0.9999999403953552
+                4.749917984008789,
+                2.158898115158081,
+                4.046411991119385
             ],
             "min" : [
-                -0.9510578513145447,
-                -1,
-                -0.9999999403953552
+                -4.249927997589111,
+                -1.866690993309021,
+                -2.2979331016540527
             ],
             "type" : "VEC3"
         },
         {
             "bufferView" : 26,
             "componentType" : 5126,
-            "count" : 63,
+            "count" : 49861,
             "type" : "VEC3"
         },
         {
             "bufferView" : 27,
-            "componentType" : 5126,
-            "count" : 63,
-            "type" : "VEC4"
-        },
-        {
-            "bufferView" : 28,
-            "componentType" : 5126,
-            "count" : 63,
-            "type" : "VEC2"
-        },
-        {
-            "bufferView" : 29,
             "componentType" : 5123,
-            "count" : 240,
+            "count" : 299814,
             "type" : "SCALAR"
         }
     ],
@@ -778,39 +745,27 @@
         },
         {
             "buffer" : 0,
-            "byteLength" : 756,
+            "byteLength" : 598332,
             "byteOffset" : 1164,
             "target" : 34962
         },
         {
             "buffer" : 0,
-            "byteLength" : 756,
-            "byteOffset" : 1920,
+            "byteLength" : 598332,
+            "byteOffset" : 599496,
             "target" : 34962
         },
         {
             "buffer" : 0,
-            "byteLength" : 1008,
-            "byteOffset" : 2676,
-            "target" : 34962
-        },
-        {
-            "buffer" : 0,
-            "byteLength" : 504,
-            "byteOffset" : 3684,
-            "target" : 34962
-        },
-        {
-            "buffer" : 0,
-            "byteLength" : 480,
-            "byteOffset" : 4188,
+            "byteLength" : 599628,
+            "byteOffset" : 1197828,
             "target" : 34963
         }
     ],
     "buffers" : [
         {
-            "byteLength" : 4668,
-            "uri" : "sphere-lowpoly.bin"
+            "byteLength" : 1797456,
+            "uri" : "dragon-50k.bin"
         }
     ]
 }

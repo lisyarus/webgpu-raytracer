@@ -811,7 +811,7 @@
     "buffers" : [
         {
             "byteLength" : 163260,
-            "uri" : "sphere-specular.bin"
+            "uri" : "sphere.bin"
         }
     ]
 }

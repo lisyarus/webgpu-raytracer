@@ -822,7 +822,7 @@
     "buffers" : [
         {
             "byteLength" : 163260,
-            "uri" : "sphere-diffuse.bin"
+            "uri" : "sphere.bin"
         }
     ]
 }

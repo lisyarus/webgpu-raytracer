@@ -6,7 +6,9 @@
     "extensionsUsed" : [
         "KHR_materials_specular",
         "KHR_materials_ior",
-        "KHR_materials_emissive_strength"
+        "KHR_materials_emissive_strength",
+        "KHR_materials_transmission",
+        "KHR_materials_volume"
     ],
     "scene" : 0,
     "scenes" : [
@@ -73,8 +75,8 @@
             ],
             "scale" : [
                 2,
-                2.000000238418579,
-                2.000000238418579
+                2,
+                2
             ],
             "translation" : [
                 0,
@@ -254,6 +256,20 @@
         },
         {
             "doubleSided" : true,
+            "extensions" : {
+                "KHR_materials_transmission" : {
+                    "transmissionFactor" : 1
+                },
+                "KHR_materials_volume" : {
+                    "thicknessFactor" : 1.0,
+                    "attenuationDistance" : 0.1,
+                    "attenuationColor" : [
+                        0.20000000298023224,
+                        0.800000011920929,
+                        0.20000000298023224
+                    ]
+                }
+            },
             "name" : "Material.001",
             "pbrMetallicRoughness" : {
                 "baseColorFactor" : [
@@ -262,6 +278,7 @@
                     0.20000000298023224,
                     1
                 ],
+                "metallicFactor" : 0,
                 "roughnessFactor" : 0
             }
         }
@@ -587,14 +604,14 @@
         {
             "bufferView" : 25,
             "componentType" : 5126,
-            "count" : 63,
+            "count" : 2737,
             "max" : [
-                0.9510578513145447,
+                1,
                 1,
                 0.9999999403953552
             ],
             "min" : [
-                -0.9510578513145447,
+                -0.9999999403953552,
                 -1,
                 -0.9999999403953552
             ],
@@ -603,25 +620,25 @@
         {
             "bufferView" : 26,
             "componentType" : 5126,
-            "count" : 63,
+            "count" : 2737,
             "type" : "VEC3"
         },
         {
             "bufferView" : 27,
             "componentType" : 5126,
-            "count" : 63,
+            "count" : 2737,
             "type" : "VEC4"
         },
         {
             "bufferView" : 28,
             "componentType" : 5126,
-            "count" : 63,
+            "count" : 2737,
             "type" : "VEC2"
         },
         {
             "bufferView" : 29,
             "componentType" : 5123,
-            "count" : 240,
+            "count" : 15360,
             "type" : "SCALAR"
         }
     ],
@@ -778,39 +795,39 @@
         },
         {
             "buffer" : 0,
-            "byteLength" : 756,
+            "byteLength" : 32844,
             "byteOffset" : 1164,
             "target" : 34962
         },
         {
             "buffer" : 0,
-            "byteLength" : 756,
-            "byteOffset" : 1920,
+            "byteLength" : 32844,
+            "byteOffset" : 34008,
             "target" : 34962
         },
         {
             "buffer" : 0,
-            "byteLength" : 1008,
-            "byteOffset" : 2676,
+            "byteLength" : 43792,
+            "byteOffset" : 66852,
             "target" : 34962
         },
         {
             "buffer" : 0,
-            "byteLength" : 504,
-            "byteOffset" : 3684,
+            "byteLength" : 21896,
+            "byteOffset" : 110644,
             "target" : 34962
         },
         {
             "buffer" : 0,
-            "byteLength" : 480,
-            "byteOffset" : 4188,
+            "byteLength" : 30720,
+            "byteOffset" : 132540,
             "target" : 34963
         }
     ],
     "buffers" : [
         {
-            "byteLength" : 4668,
-            "uri" : "sphere-lowpoly.bin"
+            "byteLength" : 163260,
+            "uri" : "sphere.bin"
         }
     ]
 }

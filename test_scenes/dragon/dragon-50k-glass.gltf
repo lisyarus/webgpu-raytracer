@@ -4,7 +4,9 @@
         "version" : "2.0"
     },
     "extensionsUsed" : [
-        "KHR_materials_emissive_strength"
+        "KHR_materials_emissive_strength",
+        "KHR_materials_transmission",
+        "KHR_materials_volume"
     ],
     "scene" : 0,
     "scenes" : [
@@ -71,8 +73,8 @@
             ],
             "scale" : [
                 2,
-                2.000000238418579,
-                2.000000238418579
+                2,
+                2
             ],
             "translation" : [
                 0,
@@ -228,6 +230,20 @@
         },
         {
             "doubleSided" : true,
+            "extensions" : {
+                "KHR_materials_transmission" : {
+                    "transmissionFactor" : 1
+                },
+                "KHR_materials_volume" : {
+                    "thicknessFactor" : 1.0,
+                    "attenuationDistance" : 0.1,
+                    "attenuationColor" : [
+                        0.9440000057220459,
+                        0.7760000228881836,
+                        0.37299999594688416
+                    ]
+                }
+            },
             "name" : "Material.004",
             "pbrMetallicRoughness" : {
                 "baseColorFactor" : [
@@ -236,6 +252,7 @@
                     0.37299999594688416,
                     1
                 ],
+                "metallicFactor" : 0,
                 "roughnessFactor" : 0.20000000298023224
             }
         }
@@ -758,7 +775,7 @@
     "buffers" : [
         {
             "byteLength" : 1797456,
-            "uri" : "dragon_50k.bin"
+            "uri" : "dragon-50k.bin"
         }
     ]
 }
