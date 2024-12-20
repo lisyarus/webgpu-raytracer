@@ -118,15 +118,27 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 
 			accumulatedColor += material.emissiveFactor.rgb * colorFactor;
 
-			let brdf = cookTorranceGGX(shadingNormal, newRay.direction, -currentRay.direction, baseColor, metallic, roughness, ior, transmission);
+			let ndotr = dot(shadingNormal, newRay.direction);
 
-			colorFactor *= brdf * abs(dot(shadingNormal, newRay.direction)) / max(1e-8, totalMISProbability);
+			if (transmission > 0.0 || ndotr > 0.0) {
+				let brdf = cookTorranceGGX(shadingNormal, newRay.direction, -currentRay.direction, baseColor, metallic, roughness, ior, transmission);
 
-			// Offset ray origin to side of the surface where new ray direction is pointing to,
-			// to prevent self-intersection artifacts
-			newRay.origin += sign(dot(newRay.direction, geometryNormal)) * geometryNormal * 1e-4;
+				colorFactor *= brdf * abs(ndotr) / max(1e-8, totalMISProbability);
 
-			currentRay = newRay;
+				// Offset ray origin to side of the surface where new ray direction is pointing to,
+				// to prevent self-intersection artifacts
+				newRay.origin += sign(dot(newRay.direction, geometryNormal)) * geometryNormal * 1e-4;
+
+				currentRay = newRay;
+			}
+			else
+			{
+				// Non-transmissive material and the new ray points inside the object
+				// => brdf would return zero, colorFactor would be zero, and all
+				// further recursive rays will be useless
+				// Instead, just ignore this ray altogether
+				break;
+			}
 		} else {
 			accumulatedColor += colorFactor * backgroundColor;
 			break;
