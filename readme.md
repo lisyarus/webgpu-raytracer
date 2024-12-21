@@ -32,6 +32,17 @@ If the camera changes in raytracing mode, the raytracing result is discarded and
 * Refractive materials are not supported. I tried to incorporate refractions into VNDF sampling but never managed to figure it out; this work resides in a separate [`vndf-refraction-wip`](https://github.com/lisyarus/webgpu-raytracer/tree/vndf-refraction-wip) branch.
 * NB: the `use camera.wgsl;` construct in the shaders is not standard WGSL, - instead, a rudimentary [shader importing mechanism](source/shader_registry.cpp) is implemented in this project.
 
+# To-do list
+
+With no promises of implementing any of this, in no particular order:
+* Implement refraction + VNDF
+* Support albedo, material & normal maps
+* Support environment maps & a fixed-color environment
+* Incorporate [tinybvh](https://github.com/jbikker/tinybvh) and test different BVH variants for performance
+* Implement wavefront path-tracing
+* Sample emissive triangles in proportion to area & intensity (probably using the [alias method](https://en.wikipedia.org/wiki/Alias_method))
+* Support GLB input scenes
+
 # Building
 
 To build this project, you need
