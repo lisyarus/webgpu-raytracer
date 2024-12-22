@@ -51,6 +51,7 @@ private:
     bool needClearAccumulationTexture_ = false;
 
     std::uint32_t frameID_ = 0;
+    std::uint32_t globalFrameID_ = 0;
 };
 
 static WGPUTextureFormat accumulationTextureFormat = WGPUTextureFormat_RGBA32Float;
@@ -179,7 +180,7 @@ void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & came
 {
     glm::uvec2 const screenSize{wgpuTextureGetWidth(surfaceTexture), wgpuTextureGetHeight(surfaceTexture)};
 
-    camera_.update(queue_, camera, screenSize, frameID_);
+    camera_.update(queue_, camera, screenSize, frameID_, globalFrameID_);
 
     WGPUCommandEncoderDescriptor commandEncoderDescriptor;
     commandEncoderDescriptor.nextInChain = nullptr;
@@ -262,6 +263,7 @@ void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & came
     wgpuCommandEncoderRelease(commandEncoder);
 
     ++frameID_;
+    ++globalFrameID_;
 }
 
 Renderer::Renderer(WGPUDevice device, WGPUQueue queue, WGPUTextureFormat surfaceFormat, ShaderRegistry & shaderRegistry)

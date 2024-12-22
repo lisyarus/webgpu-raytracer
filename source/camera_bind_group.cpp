@@ -11,7 +11,7 @@ namespace
         char padding1[4];
         glm::uvec2 screenSize;
         std::uint32_t frameID;
-        char padding2[4];
+        std::uint32_t globalFrameID;
     };
 
 }
@@ -80,14 +80,17 @@ CameraBindGroup::~CameraBindGroup()
     wgpuBufferRelease(uniformBuffer_);
 }
 
-void CameraBindGroup::update(WGPUQueue queue, Camera const & camera, glm::uvec2 const & screenSize, std::uint32_t frameID)
+void CameraBindGroup::update(WGPUQueue queue, Camera const & camera, glm::uvec2 const & screenSize, std::uint32_t frameID, std::uint32_t globalFrameID)
 {
-    CameraUniform uniform;
-    uniform.viewProjectionMatrix = camera.viewProjectionMatrix();
-    uniform.viewProjectionInverseMatrix = glm::inverse(uniform.viewProjectionMatrix);
-    uniform.position = camera.position();
-    uniform.screenSize = screenSize;
-    uniform.frameID = frameID;
+    CameraUniform uniform
+    {
+        .viewProjectionMatrix = camera.viewProjectionMatrix(),
+        .viewProjectionInverseMatrix = glm::inverse(uniform.viewProjectionMatrix),
+        .position = camera.position(),
+        .screenSize = screenSize,
+        .frameID = frameID,
+        .globalFrameID = globalFrameID,
+    };
 
     wgpuQueueWriteBuffer(queue, uniformBuffer_, 0, &uniform, sizeof(uniform));
 }
