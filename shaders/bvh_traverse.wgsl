@@ -99,6 +99,10 @@ fn intersectScene(ray : Ray) -> SceneIntersection {
 }
 
 fn lightSamplingProbability(ray : Ray) -> f32 {
+	if (emissiveTriangles.count == 0u) {
+		return 0.0;
+	}
+
 	var result = 0.0;
 
 	var nodeStack = array<u32, MAX_BVH_STACK_SIZE>();
@@ -123,7 +127,7 @@ fn lightSamplingProbability(ray : Ray) -> f32 {
 		if (node.triangleCount > 0) {
 			for (var i = 0u; i < node.triangleCount; i += 1u) {
 				let triangleIndex = node.leftChildOrFirstTriangle + i;
-				let triangleID = emissiveTriangles[triangleIndex];
+				let triangleID = emissiveTriangles.triangles[triangleIndex];
 
 				let v0 = vertexPositions[3 * triangleID + 0u].xyz;
 				let v1 = vertexPositions[3 * triangleID + 1u].xyz;
@@ -167,5 +171,5 @@ fn lightSamplingProbability(ray : Ray) -> f32 {
 		}
 	}
 
-	return result / f32(arrayLength(&emissiveTriangles));
+	return result / f32(emissiveTriangles.count);
 }

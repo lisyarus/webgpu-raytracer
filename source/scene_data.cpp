@@ -306,10 +306,17 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
         // themselves, thereby removing the need for extra indirection in the shader
 
         std::vector<std::uint32_t> sortedEmissiveTriangles;
+
+        // First element is actually the array size, see geometry.wgsl
+        sortedEmissiveTriangles.push_back(emissiveBvh.triangleIDs.size());
+
         for (auto triangleIndex : emissiveBvh.triangleIDs)
-        {
             sortedEmissiveTriangles.push_back(emissiveTriangles[triangleIndex]);
-        }
+
+        // Prevent the triangle buffer from being empty
+        if (emissiveBvh.triangleIDs.empty())
+            sortedEmissiveTriangles.push_back(0);
+
         emissiveTriangles = std::move(sortedEmissiveTriangles);
     }
 
