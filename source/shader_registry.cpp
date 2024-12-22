@@ -1,7 +1,6 @@
 #include <webgpu-raytracer/shader_registry.hpp>
 
 #include <fstream>
-#include <vector>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -15,7 +14,6 @@ struct ShaderRegistry::Impl
 private:
     std::filesystem::path shadersPath_;
     WGPUDevice device_;
-    std::unordered_map<std::string, std::string> cachedSources_;
     std::unordered_map<std::string, WGPUShaderModule> cachedShaderModules_;
 
     struct LoadingContext
@@ -23,7 +21,7 @@ private:
         std::unordered_set<std::string> alreadyIncluded;
     };
 
-    std::string const & loadSource(std::string const & name, LoadingContext & context);
+    std::string loadSource(std::string const & name, LoadingContext & context);
 };
 
 ShaderRegistry::Impl::Impl(std::filesystem::path const & shadersPath, WGPUDevice device)
@@ -61,11 +59,8 @@ WGPUShaderModule ShaderRegistry::Impl::loadShaderModule(std::string const & name
     return shaderModule;
 }
 
-std::string const & ShaderRegistry::Impl::loadSource(std::string const & name, LoadingContext & context)
+std::string ShaderRegistry::Impl::loadSource(std::string const & name, LoadingContext & context)
 {
-    if (auto it = cachedSources_.find(name); it != cachedSources_.end())
-        return it->second;
-
     auto path = shadersPath_ / name;
 
     std::string source(std::filesystem::file_size(path), '\0');
@@ -104,7 +99,7 @@ std::string const & ShaderRegistry::Impl::loadSource(std::string const & name, L
         }
     }
 
-    return (cachedSources_[name] = std::move(source));
+    return source;
 }
 
 ShaderRegistry::ShaderRegistry(std::filesystem::path const & shadersPath, WGPUDevice device)
