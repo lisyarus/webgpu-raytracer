@@ -29,6 +29,7 @@ namespace
     struct Material
     {
         glm::vec4 baseColorFactorAndTransmission;
+        // vec4(0, roughness, metallic, ior)
         glm::vec4 metallicRoughnessFactorAndIor;
         glm::vec4 emissiveFactor;
     };
@@ -152,8 +153,8 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
     // Add default rough diffuse material
     materials.push_back({
         .baseColorFactorAndTransmission = glm::vec4(1.f, 1.f, 1.f, 0.f),
-        .metallicRoughnessFactorAndIor = glm::vec4(1.f, 1.f, 0.f, 1.5f),
-        .emissiveFactor = glm::vec4(1.f),
+        .metallicRoughnessFactorAndIor = glm::vec4(0.f, 1.f, 0.f, 1.5f),
+        .emissiveFactor = glm::vec4(0.f),
     });
 
     for (auto const & node : asset.nodes)
