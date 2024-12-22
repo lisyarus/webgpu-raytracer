@@ -6,6 +6,7 @@
 #include <webgpu-raytracer/renderer.hpp>
 
 #include <iostream>
+#include <sstream>
 #include <unordered_set>
 #include <chrono>
 
@@ -13,9 +14,11 @@ static std::filesystem::path const projectRoot = PROJECT_ROOT;
 
 int main(int argc, char ** argv) try
 {
-    if (argc != 2)
+    if ((argc != 2 && argc != 3) || (argc == 2 && (argv[1] == std::string("-h") || argv[1] == std::string("--help"))))
     {
-        std::cout << "Usage: " << argv[0] << " <gltf-file>\n";
+        std::cout << "Usage: " << argv[0] << " input [ background ]\n";
+		std::cout << "    input        Path to a glTF file with the input scene\n";
+		std::cout << "    background   Background emission color in R,G,B format (black \"0,0,0\" by default)\n";
         return 0;
     }
 
@@ -26,6 +29,22 @@ int main(int argc, char ** argv) try
     auto assetPath = std::filesystem::path(argv[1]);
     auto asset = glTF::load(assetPath);
     std::cout << "Loaded asset " << assetPath << '\n';
+
+	glm::vec3 backgroundColor = glm::vec3(0.f);
+	if (argc >= 3)
+	{
+		std::istringstream is(argv[2]);
+		is >> backgroundColor.r;
+		is.get();
+		is >> backgroundColor.g;
+		is.get();
+		is >> backgroundColor.b;
+		if (!is)
+		{
+			std::cout << "Failed to parse background color \"" << argv[2] << "\"" << std::endl;
+			backgroundColor = glm::vec3(0.f);
+		}
+	}
 
     std::vector<std::uint32_t> cameraNodes;
     for (std::uint32_t i = 0; i < asset.nodes.size(); ++i)
@@ -155,7 +174,7 @@ int main(int argc, char ** argv) try
         if (cameraMoved)
             renderer.setRenderMode(Renderer::Mode::Preview);
 
-        renderer.renderFrame(surfaceTexture, camera, sceneData);
+        renderer.renderFrame(surfaceTexture, camera, sceneData, backgroundColor);
         application.present();
 
         wgpuTextureRelease(surfaceTexture);

@@ -9,7 +9,7 @@ struct CameraBindGroup
     CameraBindGroup(WGPUDevice device);
     ~CameraBindGroup();
 
-    void update(WGPUQueue queue, Camera const & camera, glm::uvec2 const & screenSize, std::uint32_t frameID);
+    void update(WGPUQueue queue, Camera const & camera, glm::uvec2 const & screenSize, std::uint32_t frameID, glm::vec3 const & backgroundColor);
 
     WGPUBindGroupLayout bindGroupLayout() const { return bindGroupLayout_; }
     WGPUBindGroup bindGroup() const { return bindGroup_; }

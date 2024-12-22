@@ -26,7 +26,7 @@ struct Renderer
     Mode renderMode() const;
     void setRenderMode(Mode mode);
 
-    void renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData);
+    void renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData, glm::vec3 const & backgroundColor);
 
 private:
     struct Impl;

@@ -109,7 +109,7 @@ PreviewPipeline::~PreviewPipeline()
 }
 
 void renderPreview(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextureView, WGPUTextureView depthTextureView,
-    WGPURenderPipeline previewPipeline, WGPUBindGroup cameraBindGroup, SceneData const & sceneData)
+    WGPURenderPipeline previewPipeline, WGPUBindGroup cameraBindGroup, SceneData const & sceneData, glm::vec3 const & backgroundColor)
 {
     WGPURenderPassColorAttachment colorAttachment;
     colorAttachment.nextInChain = nullptr;
@@ -117,7 +117,7 @@ void renderPreview(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextu
     colorAttachment.resolveTarget = nullptr;
     colorAttachment.loadOp = WGPULoadOp_Clear;
     colorAttachment.storeOp = WGPUStoreOp_Store;
-    colorAttachment.clearValue = {0.6, 0.8, 1.0, 0.0};
+    colorAttachment.clearValue = {backgroundColor.r, backgroundColor.g, backgroundColor.b, 0.0};
 
     WGPURenderPassDepthStencilAttachment depthStencilAttachment;
     depthStencilAttachment.view = depthTextureView;

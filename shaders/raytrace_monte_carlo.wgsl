@@ -19,8 +19,6 @@ use brdf.wgsl;
 
 use bvh_traverse.wgsl;
 
-const backgroundColor = vec3(0.0);
-
 fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> vec3f {
 	var accumulatedColor = vec3f(0.0);
 	var colorFactor = vec3f(1.0);
@@ -115,6 +113,10 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 				+ vndfTransmissionProbability * vndfTransmissionWeight
 				+ directLightSamplingProbability * lightSamplingWeight;
 
+
+			// totalMISProbability = 1.0 / (4.0 * PI);
+			// newRay.direction = uniformSphere(randomState);
+
 			accumulatedColor += material.emissiveFactor.rgb * colorFactor;
 
 			let ndotr = dot(shadingNormal, newRay.direction);
@@ -139,7 +141,7 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 				break;
 			}
 		} else {
-			accumulatedColor += colorFactor * backgroundColor;
+			accumulatedColor += colorFactor * camera.backgroundColor;
 			break;
 		}
 	}
