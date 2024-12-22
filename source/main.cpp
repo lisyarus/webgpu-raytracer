@@ -4,6 +4,7 @@
 #include <webgpu-raytracer/camera.hpp>
 #include <webgpu-raytracer/shader_registry.hpp>
 #include <webgpu-raytracer/renderer.hpp>
+#include <stb_image.h>
 
 #include <iostream>
 #include <sstream>
@@ -17,8 +18,9 @@ int main(int argc, char ** argv) try
     if ((argc != 2 && argc != 3) || (argc == 2 && (argv[1] == std::string("-h") || argv[1] == std::string("--help"))))
     {
         std::cout << "Usage: " << argv[0] << " input [ background ]\n";
-		std::cout << "    input        Path to a glTF file with the input scene\n";
-		std::cout << "    background   Background emission color in R,G,B format (black \"0,0,0\" by default)\n";
+        std::cout << "    input        Path to a glTF file with the input scene\n";
+        std::cout << "    background   Background emission color in R,G,B format (black \"0,0,0\" by default)\n";
+        std::cout << "                 or path to an HDRI environment map\n";
         return 0;
     }
 
@@ -30,21 +32,51 @@ int main(int argc, char ** argv) try
     auto asset = glTF::load(assetPath);
     std::cout << "Loaded asset " << assetPath << '\n';
 
-	glm::vec3 backgroundColor = glm::vec3(0.f);
-	if (argc >= 3)
-	{
-		std::istringstream is(argv[2]);
-		is >> backgroundColor.r;
-		is.get();
-		is >> backgroundColor.g;
-		is.get();
-		is >> backgroundColor.b;
-		if (!is)
-		{
-			std::cout << "Failed to parse background color \"" << argv[2] << "\"" << std::endl;
-			backgroundColor = glm::vec3(0.f);
-		}
-	}
+    HDRIData environmentMap
+    {
+        .width = 1,
+        .height = 1,
+        .pixels = {0.f, 0.f, 0.f, 0.f},
+    };
+
+    if (argc >= 3)
+    {
+        if (std::filesystem::exists(argv[2]))
+        {
+            // Try to parse an HDRI
+            int width, height, channels;
+            auto pixels = stbi_loadf(argv[2], &width, &height, &channels, 4);
+            if (pixels)
+            {
+                environmentMap.width = width;
+                environmentMap.height = height;
+                environmentMap.pixels.resize(width * height * 4);
+                std::copy(pixels, pixels + width * height * 4, environmentMap.pixels.data());
+                stbi_image_free(pixels);
+                std::cout << "Loaded HDRI from " << argv[2] << " (max intensity: " << *std::max_element(environmentMap.pixels.begin(), environmentMap.pixels.end()) << ")" << std::endl;
+            }
+            else
+            {
+                std::cout << "Failed to load HDRI from " << argv[2] << std::endl;
+            }
+        }
+        else
+        {
+            // Try to parse R,G,B background color
+
+            std::istringstream is(argv[2]);
+            is >> environmentMap.pixels[0];
+            is.get();
+            is >> environmentMap.pixels[1];
+            is.get();
+            is >> environmentMap.pixels[2];
+            if (!is)
+            {
+                std::cout << "Failed to parse background color \"" << argv[2] << "\"" << std::endl;
+                environmentMap.pixels = {0.f, 0.f, 0.f, 0.f};
+            }
+        }
+    }
 
     std::vector<std::uint32_t> cameraNodes;
     for (std::uint32_t i = 0; i < asset.nodes.size(); ++i)
@@ -56,7 +88,7 @@ int main(int argc, char ** argv) try
         camera = Camera(asset, asset.nodes[cameraNodes.front()]);
     camera.setAspectRatio(application.width() * 1.f / application.height());
 
-    SceneData sceneData(asset, application.device(), application.queue(),
+    SceneData sceneData(asset, environmentMap, application.device(), application.queue(),
         renderer.geometryBindGroupLayout(), renderer.materialBindGroupLayout());
 
     std::unordered_set<SDL_Scancode> keysDown;
@@ -174,7 +206,7 @@ int main(int argc, char ** argv) try
         if (cameraMoved)
             renderer.setRenderMode(Renderer::Mode::Preview);
 
-        renderer.renderFrame(surfaceTexture, camera, sceneData, backgroundColor);
+        renderer.renderFrame(surfaceTexture, camera, sceneData);
         application.present();
 
         wgpuTextureRelease(surfaceTexture);

@@ -4,6 +4,7 @@ use material.wgsl;
 use raytrace_common.wgsl;
 use random.wgsl;
 use brdf.wgsl;
+use env_map.wgsl;
 
 @group(0) @binding(0) var<uniform> camera : Camera;
 
@@ -14,6 +15,7 @@ use brdf.wgsl;
 @group(1) @binding(4) var<storage, read> emissiveBvhNodes : array<BVHNode>;
 
 @group(2) @binding(0) var<storage, read> materials : array<Material>;
+@group(2) @binding(1) var environmentMap : texture_storage_2d<rgba32float, read>;
 
 @group(3) @binding(0) var accumulationTexture : texture_storage_2d<rgba32float, read_write>;
 
@@ -141,7 +143,7 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 				break;
 			}
 		} else {
-			accumulatedColor += colorFactor * camera.backgroundColor;
+			accumulatedColor += colorFactor * sampleEnvMap(environmentMap, currentRay.direction);
 			break;
 		}
 	}

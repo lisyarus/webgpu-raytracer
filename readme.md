@@ -12,6 +12,8 @@ It uses wgpu-native WebGPU implementation, and SDL2 to create a window to render
 
 To run the program, first build it (see instructions below), then run it with a single glTF scene in the command arguments. For example, if you've built the project in a `build` directory inside the project root, then you can run `./webgpu-raytracer ../test_scenes/bunny/bunny_100k.gltf`.
 
+An optional second command-line parameter defines the background of the scene. It can either be an RGB comma-separated triple like `1,0.5,0.25`, or path to an HDRI environment map. The [env_maps](env_maps) directory contains some sample enrivonment maps.
+
 By default, a simple preview of the scene is rendered. Press `[SPACE]` to activate raytracing.
 
 Here are all the controls:
@@ -35,9 +37,9 @@ If the camera changes in raytracing mode, the raytracing result is discarded and
 # To-do list
 
 With no promises of implementing any of this, in no particular order:
+* ✅ Support environment maps & a fixed-color environment
 * Implement refraction + VNDF
 * Support albedo, material & normal maps
-* Support environment maps & a fixed-color environment
 * Incorporate [tinybvh](https://github.com/jbikker/tinybvh) and test different BVH variants for performance
 * Implement wavefront path-tracing
 * Sample emissive triangles in proportion to area & intensity (probably using the [alias method](https://en.wikipedia.org/wiki/Alias_method))

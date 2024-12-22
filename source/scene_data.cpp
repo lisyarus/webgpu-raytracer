@@ -142,7 +142,7 @@ namespace
 
 }
 
-SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue queue,
+SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap, WGPUDevice device, WGPUQueue queue,
     WGPUBindGroupLayout geometryBindGroupLayout, WGPUBindGroupLayout materialBindGroupLayout)
 {
     std::vector<Vertex> vertices;
@@ -382,15 +382,63 @@ SceneData::SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue que
 
     vertexCount_ = vertices.size();
 
+    WGPUTextureDescriptor environmentTextureDescriptor;
+    environmentTextureDescriptor.nextInChain = nullptr;
+    environmentTextureDescriptor.label = nullptr;
+    environmentTextureDescriptor.usage = WGPUTextureUsage_CopyDst | WGPUTextureUsage_StorageBinding;
+    environmentTextureDescriptor.dimension = WGPUTextureDimension_2D;
+    environmentTextureDescriptor.size = {environmentMap.width, environmentMap.height, 1};
+    environmentTextureDescriptor.format = WGPUTextureFormat_RGBA32Float;
+    environmentTextureDescriptor.mipLevelCount = 1;
+    environmentTextureDescriptor.sampleCount = 1;
+    environmentTextureDescriptor.viewFormatCount = 0;
+    environmentTextureDescriptor.viewFormats = nullptr;
+    environmentTexture_ = wgpuDeviceCreateTexture(device, &environmentTextureDescriptor);
+
+    WGPUImageCopyTexture environmentTextureDestination;
+    environmentTextureDestination.nextInChain = nullptr;
+    environmentTextureDestination.texture = environmentTexture_;
+    environmentTextureDestination.mipLevel = 0;
+    environmentTextureDestination.origin = {0, 0, 0};
+    environmentTextureDestination.aspect = WGPUTextureAspect_All;
+
+    WGPUTextureDataLayout environmentTextureDataLayout;
+    environmentTextureDataLayout.nextInChain = nullptr;
+    environmentTextureDataLayout.offset = 0;
+    environmentTextureDataLayout.bytesPerRow = environmentMap.width * sizeof(float) * 4;
+    environmentTextureDataLayout.rowsPerImage = environmentMap.height;
+
+    WGPUExtent3D environmentTextureWriteSize;
+    environmentTextureWriteSize.width = environmentMap.width;
+    environmentTextureWriteSize.height = environmentMap.height;
+    environmentTextureWriteSize.depthOrArrayLayers = 1;
+
+    wgpuQueueWriteTexture(queue, &environmentTextureDestination, environmentMap.pixels.data(), environmentMap.pixels.size() * sizeof(float), &environmentTextureDataLayout, &environmentTextureWriteSize);
+
+    WGPUTextureViewDescriptor environmentTextureViewDescriptor;
+    environmentTextureViewDescriptor.nextInChain = nullptr;
+    environmentTextureViewDescriptor.label = nullptr;
+    environmentTextureViewDescriptor.format = WGPUTextureFormat_RGBA32Float;
+    environmentTextureViewDescriptor.dimension = WGPUTextureViewDimension_2D;
+    environmentTextureViewDescriptor.baseMipLevel = 0;
+    environmentTextureViewDescriptor.mipLevelCount = 1;
+    environmentTextureViewDescriptor.baseArrayLayer = 0;
+    environmentTextureViewDescriptor.arrayLayerCount = 1;
+    environmentTextureViewDescriptor.aspect = WGPUTextureAspect_All;
+    environmentTextureView_ = wgpuTextureCreateView(environmentTexture_, &environmentTextureViewDescriptor);
+
     geometryBindGroup_ = createGeometryBindGroup(device, geometryBindGroupLayout, vertexPositionsBuffer_, vertexAttributesBuffer_,
         bvhNodesBuffer_, emissiveTrianglesBuffer_, emissiveBvhNodesBuffer_);
-    materialBindGroup_ = createMaterialBindGroup(device, materialBindGroupLayout, materialBuffer_);
+    materialBindGroup_ = createMaterialBindGroup(device, materialBindGroupLayout, materialBuffer_, environmentTextureView_);
 }
 
 SceneData::~SceneData()
 {
     wgpuBindGroupRelease(materialBindGroup_);
     wgpuBindGroupRelease(geometryBindGroup_);
+
+    wgpuTextureViewRelease(environmentTextureView_);
+    wgpuTextureRelease(environmentTexture_);
 
     wgpuBufferRelease(emissiveBvhNodesBuffer_);
     wgpuBufferRelease(emissiveTrianglesBuffer_);

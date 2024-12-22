@@ -13,11 +13,13 @@ struct PreviewPipeline
     ~PreviewPipeline();
 
     WGPURenderPipeline renderPipeline() const { return renderPipeline_; }
+    WGPURenderPipeline backgroundPipeline() const { return backgroundPipeline_; }
 
 private:
     WGPUPipelineLayout pipelineLayout_;
     WGPURenderPipeline renderPipeline_;
+    WGPURenderPipeline backgroundPipeline_;
 };
 
-void renderPreview(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextureView, WGPUTextureView depthTextureView,
-    WGPURenderPipeline previewPipeline, WGPUBindGroup cameraBindGroup, SceneData const & sceneData, glm::vec3 const & backgroundColor);
+void renderPreview(PreviewPipeline const & previewPipeline, WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextureView, WGPUTextureView depthTextureView,
+    WGPUBindGroup cameraBindGroup, SceneData const & sceneData);

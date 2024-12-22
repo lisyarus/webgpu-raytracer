@@ -5,5 +5,4 @@ struct Camera
 	position: vec3f,
 	screenSize : vec2u,
 	frameID : u32,
-	backgroundColor : vec3f,
 }

@@ -99,7 +99,59 @@ PreviewPipeline::PreviewPipeline(WGPUDevice device, ShaderRegistry & shaderRegis
     renderPipelineDescriptor.multisample.alphaToCoverageEnabled = false;
     renderPipelineDescriptor.fragment = &fragmentState;
 
+    WGPUDepthStencilState backgroundDepthStencilState;
+    backgroundDepthStencilState.nextInChain = nullptr;
+    backgroundDepthStencilState.format = WGPUTextureFormat_Depth24Plus;
+    backgroundDepthStencilState.depthWriteEnabled = false;
+    backgroundDepthStencilState.depthCompare = WGPUCompareFunction_Always;
+    backgroundDepthStencilState.stencilFront.compare = WGPUCompareFunction_Always;
+    backgroundDepthStencilState.stencilFront.failOp = WGPUStencilOperation_Keep;
+    backgroundDepthStencilState.stencilFront.depthFailOp = WGPUStencilOperation_Keep;
+    backgroundDepthStencilState.stencilFront.passOp = WGPUStencilOperation_Keep;
+    backgroundDepthStencilState.stencilBack.compare = WGPUCompareFunction_Always;
+    backgroundDepthStencilState.stencilBack.failOp = WGPUStencilOperation_Keep;
+    backgroundDepthStencilState.stencilBack.depthFailOp = WGPUStencilOperation_Keep;
+    backgroundDepthStencilState.stencilBack.passOp = WGPUStencilOperation_Keep;
+    backgroundDepthStencilState.stencilReadMask = 0;
+    backgroundDepthStencilState.stencilWriteMask = 0;
+    backgroundDepthStencilState.depthBias = 0;
+    backgroundDepthStencilState.depthBiasSlopeScale = 0.f;
+    backgroundDepthStencilState.depthBiasClamp = 0.f;
+
+    WGPUFragmentState backgroundFragmentState;
+    backgroundFragmentState.nextInChain = nullptr;
+    backgroundFragmentState.module = shaderModule;
+    backgroundFragmentState.entryPoint = "backgroundFragmentMain";
+    backgroundFragmentState.constantCount = 0;
+    backgroundFragmentState.constants = nullptr;
+    backgroundFragmentState.targetCount = 1;
+    backgroundFragmentState.targets = &colorTarget;
+
+    WGPURenderPipelineDescriptor backgroundPipelineDescriptor;
+    backgroundPipelineDescriptor.nextInChain = nullptr;
+    backgroundPipelineDescriptor.label = "preview_background";
+    backgroundPipelineDescriptor.layout = pipelineLayout_;
+    backgroundPipelineDescriptor.vertex.nextInChain = nullptr;
+    backgroundPipelineDescriptor.vertex.module = shaderModule;
+    backgroundPipelineDescriptor.vertex.entryPoint = "backgroundVertexMain";
+    backgroundPipelineDescriptor.vertex.constantCount = 0;
+    backgroundPipelineDescriptor.vertex.constants = nullptr;
+    backgroundPipelineDescriptor.vertex.bufferCount = 0;
+    backgroundPipelineDescriptor.vertex.buffers = nullptr;
+    backgroundPipelineDescriptor.primitive.nextInChain = nullptr;
+    backgroundPipelineDescriptor.primitive.topology = WGPUPrimitiveTopology_TriangleList;
+    backgroundPipelineDescriptor.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
+    backgroundPipelineDescriptor.primitive.frontFace = WGPUFrontFace_CCW;
+    backgroundPipelineDescriptor.primitive.cullMode = WGPUCullMode_None;
+    backgroundPipelineDescriptor.depthStencil = &backgroundDepthStencilState;
+    backgroundPipelineDescriptor.multisample.nextInChain = nullptr;
+    backgroundPipelineDescriptor.multisample.count = 1;
+    backgroundPipelineDescriptor.multisample.mask = 1;
+    backgroundPipelineDescriptor.multisample.alphaToCoverageEnabled = false;
+    backgroundPipelineDescriptor.fragment = &backgroundFragmentState;
+
     renderPipeline_ = wgpuDeviceCreateRenderPipeline(device, &renderPipelineDescriptor);
+    backgroundPipeline_ = wgpuDeviceCreateRenderPipeline(device, &backgroundPipelineDescriptor);
 }
 
 PreviewPipeline::~PreviewPipeline()
@@ -108,8 +160,8 @@ PreviewPipeline::~PreviewPipeline()
     wgpuPipelineLayoutRelease(pipelineLayout_);
 }
 
-void renderPreview(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextureView, WGPUTextureView depthTextureView,
-    WGPURenderPipeline previewPipeline, WGPUBindGroup cameraBindGroup, SceneData const & sceneData, glm::vec3 const & backgroundColor)
+void renderPreview(PreviewPipeline const & previewPipeline, WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextureView, WGPUTextureView depthTextureView,
+    WGPUBindGroup cameraBindGroup, SceneData const & sceneData)
 {
     WGPURenderPassColorAttachment colorAttachment;
     colorAttachment.nextInChain = nullptr;
@@ -117,7 +169,7 @@ void renderPreview(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextu
     colorAttachment.resolveTarget = nullptr;
     colorAttachment.loadOp = WGPULoadOp_Clear;
     colorAttachment.storeOp = WGPUStoreOp_Store;
-    colorAttachment.clearValue = {backgroundColor.r, backgroundColor.g, backgroundColor.b, 0.0};
+    colorAttachment.clearValue = {0.6, 0.8, 1.0, 0.0};
 
     WGPURenderPassDepthStencilAttachment depthStencilAttachment;
     depthStencilAttachment.view = depthTextureView;
@@ -143,7 +195,9 @@ void renderPreview(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextu
 
     wgpuRenderPassEncoderSetBindGroup(renderPassEncoder, 0, cameraBindGroup, 0, nullptr);
     wgpuRenderPassEncoderSetBindGroup(renderPassEncoder, 1, sceneData.materialBindGroup(), 0, nullptr);
-    wgpuRenderPassEncoderSetPipeline(renderPassEncoder, previewPipeline);
+    wgpuRenderPassEncoderSetPipeline(renderPassEncoder, previewPipeline.backgroundPipeline());
+    wgpuRenderPassEncoderDraw(renderPassEncoder, 3, 1, 0, 0);
+    wgpuRenderPassEncoderSetPipeline(renderPassEncoder, previewPipeline.renderPipeline());
     wgpuRenderPassEncoderSetVertexBuffer(renderPassEncoder, 0, sceneData.vertexPositionsBuffer(), 0, wgpuBufferGetSize(sceneData.vertexPositionsBuffer()));
     wgpuRenderPassEncoderSetVertexBuffer(renderPassEncoder, 1, sceneData.vertexAttributesBuffer(), 0, wgpuBufferGetSize(sceneData.vertexAttributesBuffer()));
     wgpuRenderPassEncoderDraw(renderPassEncoder, sceneData.vertexCount(), 1, 0, 0);

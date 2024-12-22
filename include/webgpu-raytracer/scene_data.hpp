@@ -4,9 +4,16 @@
 
 #include <webgpu.h>
 
+struct HDRIData
+{
+    std::uint32_t width = 0;
+    std::uint32_t height = 0;
+    std::vector<float> pixels;
+};
+
 struct SceneData
 {
-    SceneData(glTF::Asset const & asset, WGPUDevice device, WGPUQueue queue,
+    SceneData(glTF::Asset const & asset, HDRIData const & environmentMap, WGPUDevice device, WGPUQueue queue,
         WGPUBindGroupLayout geometryBindGroupLayout, WGPUBindGroupLayout materialBindGroupLayout);
     ~SceneData();
 
@@ -27,6 +34,9 @@ private:
     WGPUBuffer emissiveBvhNodesBuffer_;
 
     std::uint32_t vertexCount_;
+
+    WGPUTexture environmentTexture_;
+    WGPUTextureView environmentTextureView_;
 
     WGPUBindGroup geometryBindGroup_;
     WGPUBindGroup materialBindGroup_;

@@ -4,4 +4,4 @@
 
 WGPUBindGroupLayout createMaterialBindGroupLayout(WGPUDevice device);
 
-WGPUBindGroup createMaterialBindGroup(WGPUDevice device, WGPUBindGroupLayout bindGroupLayout, WGPUBuffer materialBuffer);
+WGPUBindGroup createMaterialBindGroup(WGPUDevice device, WGPUBindGroupLayout bindGroupLayout, WGPUBuffer materialBuffer, WGPUTextureView environmentTexture);

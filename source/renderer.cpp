@@ -20,7 +20,7 @@ struct Renderer::Impl
 
     void setRenderMode(Mode mode);
 
-    void renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData, glm::vec3 const & backgroundColor);
+    void renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData);
 
 private:
     WGPUDevice device_;
@@ -175,11 +175,11 @@ namespace
 
 }
 
-void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData, glm::vec3 const & backgroundColor)
+void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData)
 {
     glm::uvec2 const screenSize{wgpuTextureGetWidth(surfaceTexture), wgpuTextureGetHeight(surfaceTexture)};
 
-    camera_.update(queue_, camera, screenSize, frameID_, backgroundColor);
+    camera_.update(queue_, camera, screenSize, frameID_);
 
     WGPUCommandEncoderDescriptor commandEncoderDescriptor;
     commandEncoderDescriptor.nextInChain = nullptr;
@@ -213,7 +213,7 @@ void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & came
             std::tie(depthTexture_, depthTextureView_) = recreateDepthTexture(device_, screenSize.x, screenSize.y);
         }
 
-        renderPreview(commandEncoder, surfaceTextureView, depthTextureView_, previewPipeline_.renderPipeline(), camera_.bindGroup(), sceneData, backgroundColor);
+        renderPreview(previewPipeline_, commandEncoder, surfaceTextureView, depthTextureView_, camera_.bindGroup(), sceneData);
     }
     else
     {
@@ -292,7 +292,7 @@ void Renderer::setRenderMode(Mode mode)
     pimpl_->setRenderMode(mode);
 }
 
-void Renderer::renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData, glm::vec3 const & backgroundColor)
+void Renderer::renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData)
 {
-    pimpl_->renderFrame(surfaceTexture, camera, sceneData, backgroundColor);
+    pimpl_->renderFrame(surfaceTexture, camera, sceneData);
 }
