@@ -20,12 +20,16 @@ struct Renderer::Impl
 
     void setRenderMode(Mode mode);
 
+    void resetAccumulationBuffer();
+
     void renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData);
 
 private:
     WGPUDevice device_;
     WGPUQueue queue_;
     WGPUTextureFormat surfaceFormat_;
+
+    glm::uvec2 cachedScreenSize_{0, 0};
 
     WGPUTexture depthTexture_ = nullptr;
     WGPUTextureView depthTextureView_ = nullptr;
@@ -101,10 +105,13 @@ void Renderer::Impl::setRenderMode(Mode mode)
 {
     renderMode_ = mode;
     if (mode != Mode::Preview)
-    {
-        needClearAccumulationTexture_ = true;
-        frameID_ = 0;
-    }
+        resetAccumulationBuffer();
+}
+
+void Renderer::Impl::resetAccumulationBuffer()
+{
+    needClearAccumulationTexture_ = true;
+    frameID_ = 0;
 }
 
 namespace
@@ -179,6 +186,11 @@ namespace
 void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData)
 {
     glm::uvec2 const screenSize{wgpuTextureGetWidth(surfaceTexture), wgpuTextureGetHeight(surfaceTexture)};
+
+    if (screenSize != cachedScreenSize_)
+        resetAccumulationBuffer();
+
+    cachedScreenSize_ = screenSize;
 
     camera_.update(queue_, camera, screenSize, frameID_, globalFrameID_);
 
