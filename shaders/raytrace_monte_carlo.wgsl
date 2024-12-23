@@ -45,6 +45,13 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 			let texcoord = v0.texcoord + intersection.uv.x * (v1.texcoord - v0.texcoord) + intersection.uv.y * (v2.texcoord - v0.texcoord);
 
 			let albedoSample = textureSampleLevel(albedoTexture, textureSampler, texcoord, material.textureLayers.x, 0.0);
+
+			// TODO: better transparency
+			if (albedoSample.a < 0.5) {
+				currentRay.origin = intersectionPoint + currentRay.direction * 1e-4;
+				continue;
+			}
+
 			let materialSample = textureSampleLevel(materialTexture, textureSampler, texcoord, material.textureLayers.y, 0.0);
 
 			let baseColor = material.baseColorFactorAndTransmission.rgb * albedoSample.rgb;
