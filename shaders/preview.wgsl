@@ -2,6 +2,7 @@ use math.wgsl;
 use camera.wgsl;
 use material.wgsl;
 use env_map.wgsl;
+use tonemap.wgsl;
 
 @group(0) @binding(0) var<uniform> camera : Camera;
 
@@ -62,7 +63,9 @@ fn fragmentMain(in : VertexOutput, @builtin(front_facing) front_facing : bool) -
 
 	let metallic = material.metallicRoughnessFactorAndIor.b;
 
-	return vec4f(mix(litColor, reflectedColor, metallic), 1.0);
+	let color = mix(litColor, reflectedColor, metallic);
+
+	return vec4f(gammaCorrect(acesToneMap(color)), 1.0);
 }
 
 struct BackgroundVertexOutput
@@ -92,5 +95,6 @@ fn backgroundVertexMain(@builtin(vertex_index) index : u32) -> BackgroundVertexO
 fn backgroundFragmentMain(in : BackgroundVertexOutput) -> @location(0) vec4f
 {
 	let direction = in.worldSpacePosition - camera.position;
-	return vec4f(sampleEnvMap(environmentMap, direction), 1.0);
+	let color = sampleEnvMap(environmentMap, direction);
+	return vec4f(gammaCorrect(acesToneMap(color)), 1.0);
 }
