@@ -3,6 +3,7 @@
 #include <webgpu-raytracer/material_bind_group.hpp>
 #include <webgpu-raytracer/geometry_bind_group.hpp>
 #include <webgpu-raytracer/bvh.hpp>
+#include <stb_image.h>
 
 #include <glm/glm.hpp>
 
@@ -15,9 +16,11 @@ namespace
     {
         glm::vec3 normal;
         std::uint32_t materialID;
+        glm::vec2 texcoords;
+        char padding[8];
     };
 
-    static_assert(sizeof(VertexAttributes) == 16);
+    static_assert(sizeof(VertexAttributes) == 32);
 
     struct Vertex
     {
@@ -32,6 +35,8 @@ namespace
         // vec4(0, roughness, metallic, ior)
         glm::vec4 metallicRoughnessFactorAndIor;
         glm::vec4 emissiveFactor;
+        // uvec4(albedo, 0, 0, 0)
+        glm::uvec4 textureLayers;
     };
 
     void readIndices(glTF::Asset const & asset, glTF::Accessor const & indexAccessor, std::vector<std::uint32_t> & indices, std::uint32_t baseVertex)
@@ -141,6 +146,38 @@ namespace
         }
     }
 
+    void fillDefaultTexcoords(std::vector<Vertex> & vertices, std::uint32_t baseVertex, std::uint32_t count)
+    {
+        auto vertexIt = vertices.begin() + baseVertex;
+        for (std::uint32_t i = 0; i < count; ++i)
+        {
+            vertexIt->attributes.texcoords = {0.5f, 0.5f};
+            ++vertexIt;
+        }
+    }
+
+    void readTexcoords(glTF::Asset const & asset, glTF::Accessor const & texcoordAccessor, std::vector<Vertex> & vertices, std::uint32_t baseVertex)
+    {
+        auto vertexIt = vertices.begin() + baseVertex;
+
+        switch (texcoordAccessor.componentType)
+        {
+        case glTF::Accessor::ComponentType::Float:
+            for (auto texcoord : glTF::AccessorRange<glm::vec2>(asset, texcoordAccessor))
+            {
+                vertexIt->attributes.texcoords = texcoord;
+                ++vertexIt;
+            }
+            break;
+        default:
+            std::cout << "Warning: unsupported normal component type: " << (int)texcoordAccessor.componentType << "\n";
+
+            // Prevent uninitialized data
+            fillDefaultTexcoords(vertices, baseVertex, texcoordAccessor.count);
+            break;
+        }
+    }
+
 }
 
 SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap, WGPUDevice device, WGPUQueue queue,
@@ -182,12 +219,14 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
             glTF::Accessor const * indexAccessor = nullptr;
             glTF::Accessor const * positionAccessor = nullptr;
             glTF::Accessor const * normalAccessor = nullptr;
+            glTF::Accessor const * texcoordAccessor = nullptr;
 
             if (primitive.indices) indexAccessor = &asset.accessors[*primitive.indices];
 
             positionAccessor = &asset.accessors[*primitive.attributes.position];
 
             if (primitive.attributes.normal) normalAccessor = &asset.accessors[*primitive.attributes.normal];
+            if (primitive.attributes.texcoord) texcoordAccessor = &asset.accessors[*primitive.attributes.texcoord];
 
             // Read indices
 
@@ -213,6 +252,12 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
             else
                 reconstructNormals(vertices, indices, baseVertex, baseIndex, positionAccessor->count, indexCount);
 
+            // Read texture coordinates
+            if (texcoordAccessor)
+                readTexcoords(asset, *texcoordAccessor, vertices, baseVertex);
+            else
+                fillDefaultTexcoords(vertices, baseVertex, positionAccessor->count);
+
             std::uint32_t materialID = primitive.material ? 1 + *primitive.material : 0;
 
             for (std::uint32_t i = 0; i < positionAccessor->count; ++i)
@@ -226,13 +271,62 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
         }
     }
 
+    glm::uvec2 maxAlbedoTextureSize(1);
+
+    struct Image
+    {
+        std::uint32_t width;
+        std::uint32_t height;
+        std::uint32_t const * pixels;
+    };
+
+    std::vector<Image> albedoImages;
+    std::unordered_map<std::uint32_t, std::uint32_t> glTFImageToAlbedoArrayLayer;
+
+    albedoImages.push_back({
+        .width = 1,
+        .height = 1,
+        .pixels = nullptr,
+    });
+
     for (auto const & materialIn : asset.materials)
     {
         auto & material = materials.emplace_back();
         material.baseColorFactorAndTransmission = glm::vec4(glm::vec3(materialIn.baseColorFactor), materialIn.transmission);
-        material.metallicRoughnessFactorAndIor = glm::vec4(1.f, materialIn.roughnessFactor, materialIn.metallicFactor, materialIn.ior);
+        material.metallicRoughnessFactorAndIor = glm::vec4(0.f, materialIn.roughnessFactor, materialIn.metallicFactor, materialIn.ior);
         material.emissiveFactor = glm::vec4(materialIn.emissiveFactor, 1.f);
+        material.textureLayers = glm::uvec4(0);
+
+        if (materialIn.baseColorTexture)
+        {
+            if (auto sourceImage = asset.textures[*materialIn.baseColorTexture].source)
+            {
+                if (glTFImageToAlbedoArrayLayer.contains(*sourceImage))
+                {
+                    material.textureLayers.x = glTFImageToAlbedoArrayLayer.at(*sourceImage);
+                }
+                else
+                {
+                    auto const & image = asset.images[*sourceImage];
+                    maxAlbedoTextureSize = glm::max(maxAlbedoTextureSize, glm::uvec2(image.width, image.height));
+
+                    glTFImageToAlbedoArrayLayer[*sourceImage] = albedoImages.size();
+                    material.textureLayers.x = albedoImages.size();
+
+                    albedoImages.push_back({
+                        .width = image.width,
+                        .height = image.height,
+                        .pixels = image.data.data(),
+                    });
+                }
+            }
+        }
     }
+
+    std::vector<std::uint32_t> whitePixels(maxAlbedoTextureSize.x * maxAlbedoTextureSize.y, 0xffffffffu);
+    albedoImages[0].width = maxAlbedoTextureSize.x;
+    albedoImages[0].height = maxAlbedoTextureSize.y;
+    albedoImages[0].pixels = whitePixels.data();
 
     std::vector<AABB> triangleAABB(indices.size() / 3);
     for (std::uint32_t i = 0; i < triangleAABB.size(); ++i)
@@ -383,6 +477,70 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
 
     vertexCount_ = vertices.size();
 
+    WGPUSamplerDescriptor samplerDescriptor;
+    samplerDescriptor.nextInChain = nullptr;
+    samplerDescriptor.label = nullptr;
+    samplerDescriptor.addressModeU = WGPUAddressMode_Repeat;
+    samplerDescriptor.addressModeV = WGPUAddressMode_Repeat;
+    samplerDescriptor.addressModeW = WGPUAddressMode_Repeat;
+    samplerDescriptor.magFilter = WGPUFilterMode_Linear;
+    samplerDescriptor.minFilter = WGPUFilterMode_Linear;
+    samplerDescriptor.mipmapFilter = WGPUMipmapFilterMode_Nearest;
+    samplerDescriptor.lodMinClamp = 0.f;
+    samplerDescriptor.lodMaxClamp = 0.f;
+    samplerDescriptor.compare = WGPUCompareFunction_Undefined;
+    samplerDescriptor.maxAnisotropy = 1;
+
+    sampler_ = wgpuDeviceCreateSampler(device, &samplerDescriptor);
+
+    WGPUTextureDescriptor albedoTextureDescriptor;
+    albedoTextureDescriptor.nextInChain = nullptr;
+    albedoTextureDescriptor.label = nullptr;
+    albedoTextureDescriptor.usage = WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding;
+    albedoTextureDescriptor.dimension = WGPUTextureDimension_2D;
+    albedoTextureDescriptor.size = {maxAlbedoTextureSize.x, maxAlbedoTextureSize.y, (std::uint32_t)albedoImages.size()};
+    albedoTextureDescriptor.format = WGPUTextureFormat_RGBA8UnormSrgb;
+    albedoTextureDescriptor.mipLevelCount = 1;
+    albedoTextureDescriptor.sampleCount = 1;
+    albedoTextureDescriptor.viewFormatCount = 0;
+    albedoTextureDescriptor.viewFormats = nullptr;
+    albedoTexture_ = wgpuDeviceCreateTexture(device, &albedoTextureDescriptor);
+
+    WGPUTextureViewDescriptor albedoTextureViewDescriptor;
+    albedoTextureViewDescriptor.nextInChain = nullptr;
+    albedoTextureViewDescriptor.label = nullptr;
+    albedoTextureViewDescriptor.format = WGPUTextureFormat_RGBA8UnormSrgb;
+    albedoTextureViewDescriptor.dimension = WGPUTextureViewDimension_2DArray;
+    albedoTextureViewDescriptor.baseMipLevel = 0;
+    albedoTextureViewDescriptor.mipLevelCount = 1;
+    albedoTextureViewDescriptor.baseArrayLayer = 0;
+    albedoTextureViewDescriptor.arrayLayerCount = albedoImages.size();
+    albedoTextureViewDescriptor.aspect = WGPUTextureAspect_All;
+    albedoTextureView_ = wgpuTextureCreateView(albedoTexture_, &albedoTextureViewDescriptor);
+
+    for (std::uint32_t layer = 0; layer < albedoImages.size(); ++layer)
+    {
+        WGPUImageCopyTexture textureDestination;
+        textureDestination.nextInChain = nullptr;
+        textureDestination.texture = albedoTexture_;
+        textureDestination.mipLevel = 0;
+        textureDestination.origin = {0, 0, layer};
+        textureDestination.aspect = WGPUTextureAspect_All;
+
+        WGPUTextureDataLayout textureDataLayout;
+        textureDataLayout.nextInChain = nullptr;
+        textureDataLayout.offset = 0;
+        textureDataLayout.bytesPerRow = albedoImages[layer].width * 4;
+        textureDataLayout.rowsPerImage = albedoImages[layer].height;
+
+        WGPUExtent3D textureWriteSize;
+        textureWriteSize.width = albedoImages[layer].width;
+        textureWriteSize.height = albedoImages[layer].height;
+        textureWriteSize.depthOrArrayLayers = 1;
+
+        wgpuQueueWriteTexture(queue, &textureDestination, albedoImages[layer].pixels, albedoImages[layer].width * albedoImages[layer].height * 4, &textureDataLayout, &textureWriteSize);
+    }
+
     WGPUTextureDescriptor environmentTextureDescriptor;
     environmentTextureDescriptor.nextInChain = nullptr;
     environmentTextureDescriptor.label = nullptr;
@@ -430,7 +588,7 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
 
     geometryBindGroup_ = createGeometryBindGroup(device, geometryBindGroupLayout, vertexPositionsBuffer_, vertexAttributesBuffer_,
         bvhNodesBuffer_, emissiveTrianglesBuffer_, emissiveBvhNodesBuffer_);
-    materialBindGroup_ = createMaterialBindGroup(device, materialBindGroupLayout, materialBuffer_, environmentTextureView_);
+    materialBindGroup_ = createMaterialBindGroup(device, materialBindGroupLayout, materialBuffer_, sampler_, albedoTextureView_, environmentTextureView_);
 }
 
 SceneData::~SceneData()

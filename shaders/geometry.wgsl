@@ -2,6 +2,7 @@ struct Vertex
 {
 	normal : vec3f,
 	materialID : u32,
+	texcoord : vec2f,
 }
 
 struct BVHNode

@@ -7,50 +7,62 @@ use env_map.wgsl;
 
 @group(1) @binding(0) var<storage, read> materials : array<Material>;
 @group(1) @binding(1) var environmentMap : texture_storage_2d<rgba32float, read>;
+@group(1) @binding(2) var textureSampler : sampler;
+@group(1) @binding(3) var albedoTexture : texture_2d_array<f32>;
 
 struct VertexInput {
 	@builtin(vertex_index) index : u32,
 	@location(0) position : vec3f,
 	@location(1) normal : vec3f,
-	@location(2) materialID: u32,
+	@location(2) materialID : u32,
+	@location(3) texcoord : vec2f,
 }
 
 struct VertexOutput {
 	@builtin(position) position : vec4f,
 	@location(0) worldPosition : vec3f,
 	@location(1) normal : vec3f,
-	@location(2) color : vec3f,
-	@location(3) emission : vec3f,
-	@location(4) metallic : f32,
+	@location(2) texcoord : vec2f,
+	@location(3) @interpolate(flat) materialID : u32,
 }
 
 @vertex
 fn vertexMain(in : VertexInput) -> VertexOutput {
-	let material = materials[in.materialID];
 	return VertexOutput(
 		camera.viewProjectionMatrix * vec4f(in.position, 1.0),
 		in.position,
 		in.normal,
-		material.baseColorFactorAndTransmission.rgb,
-		material.emissiveFactor.rgb,
-		material.metallicRoughnessFactorAndIor.b,
+		in.texcoord,
+		in.materialID,
 	);
 }
 
 @fragment
 fn fragmentMain(in : VertexOutput, @builtin(front_facing) front_facing : bool) -> @location(0) vec4f {
+	let material = materials[in.materialID];
+
 	let normal = normalize(select(-in.normal, in.normal, front_facing));
 
 	let lightDirection = normalize(vec3f(1.0, 3.0, 2.0));
 
-	let color = in.color * 0.5 * (0.5 + 0.5 * dot(normal, lightDirection)) + in.emission;
+	let albedoSample = textureSampleLevel(albedoTexture, textureSampler, in.texcoord, material.textureLayers.x, 0.0);
+
+	if (albedoSample.a < 0.5) {
+		discard;
+	}
+
+	let albedo = material.baseColorFactorAndTransmission.rgb * albedoSample.rgb;
+
+	let litColor = albedo * (0.5 + 0.5 * dot(normal, lightDirection)) + material.emissiveFactor.rgb;
 
 	let cameraDirection = normalize(camera.position - in.worldPosition);
 	let reflectedDirection = 2.0 * normal * dot(normal, cameraDirection) - cameraDirection;
 
-	let reflectedColor = sampleEnvMap(environmentMap, reflectedDirection) * in.color;
+	let reflectedColor = sampleEnvMap(environmentMap, reflectedDirection) * albedo;
 
-	return vec4f(mix(color, reflectedColor, in.metallic), 1.0);
+	let metallic = material.metallicRoughnessFactorAndIor.b;
+
+	return vec4f(mix(litColor, reflectedColor, metallic), 1.0);
 }
 
 struct BackgroundVertexOutput

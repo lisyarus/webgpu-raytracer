@@ -4,4 +4,5 @@
 
 WGPUBindGroupLayout createMaterialBindGroupLayout(WGPUDevice device);
 
-WGPUBindGroup createMaterialBindGroup(WGPUDevice device, WGPUBindGroupLayout bindGroupLayout, WGPUBuffer materialBuffer, WGPUTextureView environmentTexture);
+WGPUBindGroup createMaterialBindGroup(WGPUDevice device, WGPUBindGroupLayout bindGroupLayout, WGPUBuffer materialBuffer, WGPUSampler textureSampler,
+    WGPUTextureView albedoTexture, WGPUTextureView environmentTexture);

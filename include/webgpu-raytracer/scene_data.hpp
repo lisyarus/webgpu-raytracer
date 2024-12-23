@@ -35,6 +35,11 @@ private:
 
     std::uint32_t vertexCount_;
 
+    WGPUSampler sampler_;
+
+    WGPUTexture albedoTexture_;
+    WGPUTextureView albedoTextureView_;
+
     WGPUTexture environmentTexture_;
     WGPUTextureView environmentTextureView_;
 
