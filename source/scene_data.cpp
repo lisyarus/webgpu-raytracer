@@ -35,7 +35,7 @@ namespace
         // vec4(0, roughness, metallic, ior)
         glm::vec4 metallicRoughnessFactorAndIor;
         glm::vec4 emissiveFactor;
-        // uvec4(albedo, 0, 0, 0)
+        // uvec4(albedo, material, 0, 0)
         glm::uvec4 textureLayers;
     };
 
@@ -272,6 +272,7 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
     }
 
     glm::uvec2 maxAlbedoTextureSize(1);
+    glm::uvec2 maxMaterialTextureSize(1);
 
     struct Image
     {
@@ -281,9 +282,18 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
     };
 
     std::vector<Image> albedoImages;
+    std::vector<Image> materialImages;
+
     std::unordered_map<std::uint32_t, std::uint32_t> glTFImageToAlbedoArrayLayer;
+    std::unordered_map<std::uint32_t, std::uint32_t> glTFImageToMaterialArrayLayer;
 
     albedoImages.push_back({
+        .width = 1,
+        .height = 1,
+        .pixels = nullptr,
+    });
+
+    materialImages.push_back({
         .width = 1,
         .height = 1,
         .pixels = nullptr,
@@ -321,12 +331,42 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
                 }
             }
         }
+
+        if (materialIn.metallicRoughnessTexture)
+        {
+            if (auto sourceImage = asset.textures[*materialIn.metallicRoughnessTexture].source)
+            {
+                if (glTFImageToMaterialArrayLayer.contains(*sourceImage))
+                {
+                    material.textureLayers.y = glTFImageToMaterialArrayLayer.at(*sourceImage);
+                }
+                else
+                {
+                    auto const & image = asset.images[*sourceImage];
+                    maxMaterialTextureSize = glm::max(maxMaterialTextureSize, glm::uvec2(image.width, image.height));
+
+                    glTFImageToMaterialArrayLayer[*sourceImage] = materialImages.size();
+                    material.textureLayers.y = materialImages.size();
+
+                    materialImages.push_back({
+                        .width = image.width,
+                        .height = image.height,
+                        .pixels = image.data.data(),
+                    });
+                }
+            }
+        }
     }
 
-    std::vector<std::uint32_t> whitePixels(maxAlbedoTextureSize.x * maxAlbedoTextureSize.y, 0xffffffffu);
+    std::vector<std::uint32_t> whiteAlbedoPixels(maxAlbedoTextureSize.x * maxAlbedoTextureSize.y, 0xffffffffu);
     albedoImages[0].width = maxAlbedoTextureSize.x;
     albedoImages[0].height = maxAlbedoTextureSize.y;
-    albedoImages[0].pixels = whitePixels.data();
+    albedoImages[0].pixels = whiteAlbedoPixels.data();
+
+    std::vector<std::uint32_t> whiteMaterialPixels(maxMaterialTextureSize.x * maxMaterialTextureSize.y, 0xffffffffu);
+    materialImages[0].width = maxMaterialTextureSize.x;
+    materialImages[0].height = maxMaterialTextureSize.y;
+    materialImages[0].pixels = whiteMaterialPixels.data();
 
     std::vector<AABB> triangleAABB(indices.size() / 3);
     for (std::uint32_t i = 0; i < triangleAABB.size(); ++i)
@@ -541,6 +581,54 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
         wgpuQueueWriteTexture(queue, &textureDestination, albedoImages[layer].pixels, albedoImages[layer].width * albedoImages[layer].height * 4, &textureDataLayout, &textureWriteSize);
     }
 
+    WGPUTextureDescriptor materialTextureDescriptor;
+    materialTextureDescriptor.nextInChain = nullptr;
+    materialTextureDescriptor.label = nullptr;
+    materialTextureDescriptor.usage = WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding;
+    materialTextureDescriptor.dimension = WGPUTextureDimension_2D;
+    materialTextureDescriptor.size = {maxMaterialTextureSize.x, maxMaterialTextureSize.y, (std::uint32_t)materialImages.size()};
+    materialTextureDescriptor.format = WGPUTextureFormat_RGBA8Unorm;
+    materialTextureDescriptor.mipLevelCount = 1;
+    materialTextureDescriptor.sampleCount = 1;
+    materialTextureDescriptor.viewFormatCount = 0;
+    materialTextureDescriptor.viewFormats = nullptr;
+    materialTexture_ = wgpuDeviceCreateTexture(device, &materialTextureDescriptor);
+
+    WGPUTextureViewDescriptor materialTextureViewDescriptor;
+    materialTextureViewDescriptor.nextInChain = nullptr;
+    materialTextureViewDescriptor.label = nullptr;
+    materialTextureViewDescriptor.format = WGPUTextureFormat_RGBA8Unorm;
+    materialTextureViewDescriptor.dimension = WGPUTextureViewDimension_2DArray;
+    materialTextureViewDescriptor.baseMipLevel = 0;
+    materialTextureViewDescriptor.mipLevelCount = 1;
+    materialTextureViewDescriptor.baseArrayLayer = 0;
+    materialTextureViewDescriptor.arrayLayerCount = materialImages.size();
+    materialTextureViewDescriptor.aspect = WGPUTextureAspect_All;
+    materialTextureView_ = wgpuTextureCreateView(materialTexture_, &materialTextureViewDescriptor);
+
+    for (std::uint32_t layer = 0; layer < materialImages.size(); ++layer)
+    {
+        WGPUImageCopyTexture textureDestination;
+        textureDestination.nextInChain = nullptr;
+        textureDestination.texture = materialTexture_;
+        textureDestination.mipLevel = 0;
+        textureDestination.origin = {0, 0, layer};
+        textureDestination.aspect = WGPUTextureAspect_All;
+
+        WGPUTextureDataLayout textureDataLayout;
+        textureDataLayout.nextInChain = nullptr;
+        textureDataLayout.offset = 0;
+        textureDataLayout.bytesPerRow = materialImages[layer].width * 4;
+        textureDataLayout.rowsPerImage = materialImages[layer].height;
+
+        WGPUExtent3D textureWriteSize;
+        textureWriteSize.width = materialImages[layer].width;
+        textureWriteSize.height = materialImages[layer].height;
+        textureWriteSize.depthOrArrayLayers = 1;
+
+        wgpuQueueWriteTexture(queue, &textureDestination, materialImages[layer].pixels, materialImages[layer].width * materialImages[layer].height * 4, &textureDataLayout, &textureWriteSize);
+    }
+
     WGPUTextureDescriptor environmentTextureDescriptor;
     environmentTextureDescriptor.nextInChain = nullptr;
     environmentTextureDescriptor.label = nullptr;
@@ -588,7 +676,7 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
 
     geometryBindGroup_ = createGeometryBindGroup(device, geometryBindGroupLayout, vertexPositionsBuffer_, vertexAttributesBuffer_,
         bvhNodesBuffer_, emissiveTrianglesBuffer_, emissiveBvhNodesBuffer_);
-    materialBindGroup_ = createMaterialBindGroup(device, materialBindGroupLayout, materialBuffer_, sampler_, albedoTextureView_, environmentTextureView_);
+    materialBindGroup_ = createMaterialBindGroup(device, materialBindGroupLayout, materialBuffer_, sampler_, albedoTextureView_, materialTextureView_, environmentTextureView_);
 }
 
 SceneData::~SceneData()
@@ -598,6 +686,12 @@ SceneData::~SceneData()
 
     wgpuTextureViewRelease(environmentTextureView_);
     wgpuTextureRelease(environmentTexture_);
+
+    wgpuTextureViewRelease(materialTextureView_);
+    wgpuTextureRelease(materialTexture_);
+
+    wgpuTextureViewRelease(albedoTextureView_);
+    wgpuTextureRelease(albedoTexture_);
 
     wgpuBufferRelease(emissiveBvhNodesBuffer_);
     wgpuBufferRelease(emissiveTrianglesBuffer_);

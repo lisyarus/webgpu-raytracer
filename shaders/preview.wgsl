@@ -10,6 +10,7 @@ use tonemap.wgsl;
 @group(1) @binding(1) var environmentMap : texture_storage_2d<rgba32float, read>;
 @group(1) @binding(2) var textureSampler : sampler;
 @group(1) @binding(3) var albedoTexture : texture_2d_array<f32>;
+@group(1) @binding(4) var materialTexture : texture_2d_array<f32>;
 
 struct VertexInput {
 	@builtin(vertex_index) index : u32,
@@ -61,7 +62,9 @@ fn fragmentMain(in : VertexOutput, @builtin(front_facing) front_facing : bool) -
 
 	let reflectedColor = sampleEnvMap(environmentMap, reflectedDirection) * albedo;
 
-	let metallic = material.metallicRoughnessFactorAndIor.b;
+	let materialSample = textureSampleLevel(materialTexture, textureSampler, in.texcoord, material.textureLayers.y, 0.0);
+
+	let metallic = material.metallicRoughnessFactorAndIor.b * materialSample.b;
 
 	let color = mix(litColor, reflectedColor, metallic);
 

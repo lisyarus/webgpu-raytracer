@@ -18,6 +18,7 @@ use env_map.wgsl;
 @group(2) @binding(1) var environmentMap : texture_storage_2d<rgba32float, read>;
 @group(2) @binding(2) var textureSampler : sampler;
 @group(2) @binding(3) var albedoTexture : texture_2d_array<f32>;
+@group(2) @binding(4) var materialTexture : texture_2d_array<f32>;
 
 @group(3) @binding(0) var accumulationTexture : texture_storage_2d<rgba32float, read_write>;
 
@@ -44,10 +45,11 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 			let texcoord = v0.texcoord + intersection.uv.x * (v1.texcoord - v0.texcoord) + intersection.uv.y * (v2.texcoord - v0.texcoord);
 
 			let albedoSample = textureSampleLevel(albedoTexture, textureSampler, texcoord, material.textureLayers.x, 0.0);
+			let materialSample = textureSampleLevel(materialTexture, textureSampler, texcoord, material.textureLayers.y, 0.0);
 
 			let baseColor = material.baseColorFactorAndTransmission.rgb * albedoSample.rgb;
-			let metallic = material.metallicRoughnessFactorAndIor.b;
-			let roughness = max(0.05, material.metallicRoughnessFactorAndIor.g);
+			let metallic = material.metallicRoughnessFactorAndIor.b * materialSample.b;
+			let roughness = max(0.05, material.metallicRoughnessFactorAndIor.g * materialSample.g);
 			var ior = material.metallicRoughnessFactorAndIor.a;
 			let transmission = material.baseColorFactorAndTransmission.a;
 

@@ -2,7 +2,7 @@
 
 WGPUBindGroupLayout createMaterialBindGroupLayout(WGPUDevice device)
 {
-    WGPUBindGroupLayoutEntry layoutEntries[4];
+    WGPUBindGroupLayoutEntry layoutEntries[5];
 
     layoutEntries[0].nextInChain = nullptr;
     layoutEntries[0].binding = 0;
@@ -76,19 +76,37 @@ WGPUBindGroupLayout createMaterialBindGroupLayout(WGPUDevice device)
     layoutEntries[3].storageTexture.format = WGPUTextureFormat_Undefined;
     layoutEntries[3].storageTexture.viewDimension = WGPUTextureViewDimension_Undefined;
 
+    layoutEntries[4].nextInChain = nullptr;
+    layoutEntries[4].binding = 4;
+    layoutEntries[4].visibility = WGPUShaderStage_Fragment | WGPUShaderStage_Compute;
+    layoutEntries[4].buffer.nextInChain = nullptr;
+    layoutEntries[4].buffer.type = WGPUBufferBindingType_Undefined;
+    layoutEntries[4].buffer.hasDynamicOffset = false;
+    layoutEntries[4].buffer.minBindingSize = 0;
+    layoutEntries[4].sampler.nextInChain = nullptr;
+    layoutEntries[4].sampler.type = WGPUSamplerBindingType_Undefined;
+    layoutEntries[4].texture.nextInChain = nullptr;
+    layoutEntries[4].texture.sampleType = WGPUTextureSampleType_Float;
+    layoutEntries[4].texture.viewDimension = WGPUTextureViewDimension_2DArray;
+    layoutEntries[4].texture.multisampled = false;
+    layoutEntries[4].storageTexture.nextInChain = nullptr;
+    layoutEntries[4].storageTexture.access = WGPUStorageTextureAccess_Undefined;
+    layoutEntries[4].storageTexture.format = WGPUTextureFormat_Undefined;
+    layoutEntries[4].storageTexture.viewDimension = WGPUTextureViewDimension_Undefined;
+
     WGPUBindGroupLayoutDescriptor bindGroupLayoutDescriptor;
     bindGroupLayoutDescriptor.nextInChain = nullptr;
     bindGroupLayoutDescriptor.label = "materials";
-    bindGroupLayoutDescriptor.entryCount = 4;
+    bindGroupLayoutDescriptor.entryCount = 5;
     bindGroupLayoutDescriptor.entries = layoutEntries;
 
     return wgpuDeviceCreateBindGroupLayout(device, &bindGroupLayoutDescriptor);
 }
 
 WGPUBindGroup createMaterialBindGroup(WGPUDevice device, WGPUBindGroupLayout bindGroupLayout, WGPUBuffer materialBuffer, WGPUSampler textureSampler,
-    WGPUTextureView albedoTexture, WGPUTextureView environmentTexture)
+    WGPUTextureView albedoTexture, WGPUTextureView materialTexture, WGPUTextureView environmentTexture)
 {
-    WGPUBindGroupEntry entries[4];
+    WGPUBindGroupEntry entries[5];
 
     entries[0].nextInChain = nullptr;
     entries[0].binding = 0;
@@ -122,11 +140,19 @@ WGPUBindGroup createMaterialBindGroup(WGPUDevice device, WGPUBindGroupLayout bin
     entries[3].sampler = nullptr;
     entries[3].textureView = albedoTexture;
 
+    entries[4].nextInChain = nullptr;
+    entries[4].binding = 4;
+    entries[4].buffer = nullptr;
+    entries[4].offset = 0;
+    entries[4].size = 0;
+    entries[4].sampler = nullptr;
+    entries[4].textureView = materialTexture;
+
     WGPUBindGroupDescriptor bindGroupDescriptor;
     bindGroupDescriptor.nextInChain = nullptr;
     bindGroupDescriptor.label = "materials";
     bindGroupDescriptor.layout = bindGroupLayout;
-    bindGroupDescriptor.entryCount = 4;
+    bindGroupDescriptor.entryCount = 5;
     bindGroupDescriptor.entries = entries;
 
     return wgpuDeviceCreateBindGroup(device, &bindGroupDescriptor);

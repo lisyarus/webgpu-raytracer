@@ -40,6 +40,9 @@ private:
     WGPUTexture albedoTexture_;
     WGPUTextureView albedoTextureView_;
 
+    WGPUTexture materialTexture_;
+    WGPUTextureView materialTextureView_;
+
     WGPUTexture environmentTexture_;
     WGPUTextureView environmentTextureView_;
 
