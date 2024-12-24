@@ -7,6 +7,7 @@
 #include <webgpu-raytracer/raytrace_first_hit_pipeline.hpp>
 #include <webgpu-raytracer/raytrace_monte_carlo_pipeline.hpp>
 #include <webgpu-raytracer/compose_pipeline.hpp>
+#include <webgpu-raytracer/profiler.hpp>
 
 struct Renderer::Impl
 {
@@ -56,6 +57,8 @@ private:
 
     std::uint32_t frameID_ = 0;
     std::uint32_t globalFrameID_ = 0;
+
+    Profiler profiler_;
 };
 
 static WGPUTextureFormat accumulationTextureFormat = WGPUTextureFormat_RGBA32Float;
@@ -73,10 +76,13 @@ Renderer::Impl::Impl(WGPUDevice device, WGPUQueue queue, WGPUTextureFormat surfa
     , raytraceFirstHitPipeline_(device, shaderRegistry, camera_.bindGroupLayout(), geometryBindGroupLayout_, materialBindGroupLayout_, accumulationStorageBindGroupLayout_)
     , raytraceMonteCarloPipeline_(device, shaderRegistry, camera_.bindGroupLayout(), geometryBindGroupLayout_, materialBindGroupLayout_, accumulationStorageBindGroupLayout_)
     , composePipeline_(device, shaderRegistry, surfaceFormat, accumulationSampleBindGroupLayout_)
+    , profiler_(device)
 {}
 
 Renderer::Impl::~Impl()
 {
+    profiler_.dump();
+
     wgpuBindGroupLayoutRelease(accumulationSampleBindGroupLayout_);
     wgpuBindGroupLayoutRelease(accumulationStorageBindGroupLayout_);
     wgpuBindGroupLayoutRelease(materialBindGroupLayout_);
@@ -200,6 +206,8 @@ void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & came
 
     WGPUCommandEncoder commandEncoder = wgpuDeviceCreateCommandEncoder(device_, &commandEncoderDescriptor);
 
+    auto frameProfiler = profiler_.beginFrame(commandEncoder);
+
     WGPUTextureViewDescriptor surfaceTextureViewDescriptor;
     surfaceTextureViewDescriptor.nextInChain = nullptr;
     surfaceTextureViewDescriptor.label = nullptr;
@@ -254,13 +262,19 @@ void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & came
             renderRaytraceFirstHit(commandEncoder, accumulationTextureView_, raytraceFirstHitPipeline_.pipeline(),
                 camera_.bindGroup(), sceneData, accumulationStorageBindGroup_, screenSize);
         else if (renderMode_ == Mode::RaytraceMonteCarlo)
+        {
             renderRaytraceMonteCarlo(commandEncoder, accumulationTextureView_, raytraceMonteCarloPipeline_.pipeline(),
                 camera_.bindGroup(), sceneData, accumulationStorageBindGroup_, screenSize);
+            frameProfiler.timestamp("raytrace");
+        }
 
         renderCompose(commandEncoder, surfaceTextureView, composePipeline_.renderPipeline(), accumulationSampleBindGroup_);
+        frameProfiler.timestamp("compose");
 
         needClearAccumulationTexture_ = false;
     }
+
+    profiler_.endFrame(std::move(frameProfiler));
 
     WGPUCommandBufferDescriptor commandBufferDescriptor;
     commandBufferDescriptor.nextInChain = nullptr;
@@ -276,6 +290,8 @@ void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & came
 
     ++frameID_;
     ++globalFrameID_;
+
+    profiler_.poll();
 }
 
 Renderer::Renderer(WGPUDevice device, WGPUQueue queue, WGPUTextureFormat surfaceFormat, ShaderRegistry & shaderRegistry)
