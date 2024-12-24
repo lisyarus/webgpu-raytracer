@@ -6,14 +6,14 @@ struct BVH
 {
     struct Node
     {
-        AABB aabb;
-
         // Right child id is always leftChild + 1
         // The top 2 bits of leftChildOrFirstTriangle contain
         //    the splitting axis for ordered traversal
         // Triangle count is > 0 only for leaf nodes
 
+        glm::vec3 aabbMin{std::numeric_limits<float>::infinity()};
         std::uint32_t leftChildOrFirstTriangle = 0;
+        glm::vec3 aabbMax{-std::numeric_limits<float>::infinity()};
         std::uint32_t triangleCount = 0;
     };
 

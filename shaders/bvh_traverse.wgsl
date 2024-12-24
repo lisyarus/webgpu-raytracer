@@ -35,7 +35,10 @@ fn intersectScene(ray : Ray) -> SceneIntersection {
 
 		let node = bvhNodes[currentNodeID];
 
-		let hit = intersectRayAABB(ray, vec3f(node.minX, node.minY, node.minZ), vec3f(node.maxX, node.maxY, node.maxZ));
+		let leftChildOrFirstTriangle = bitcast<u32>(node.aabbMin.w);
+		let triangleCount = bitcast<u32>(node.aabbMax.w);
+
+		let hit = intersectRayAABB(ray, node.aabbMin.xyz, node.aabbMax.xyz);
 
 		if (!hit.intersects || hit.distance > result.distance) {
 			if (nodeStackSize > 0u) {
@@ -49,9 +52,9 @@ fn intersectScene(ray : Ray) -> SceneIntersection {
 
 		result.intersectedNodeCount += 1u;
 
-		if (node.triangleCount > 0) {
-			for (var i = 0u; i < node.triangleCount; i += 1u) {
-				let triangleID = node.leftChildOrFirstTriangle + i;
+		if (triangleCount > 0) {
+			for (var i = 0u; i < triangleCount; i += 1u) {
+				let triangleID = leftChildOrFirstTriangle + i;
 
 				let v0 = vertexPositions[3 * triangleID + 0u].xyz;
 				let v1 = vertexPositions[3 * triangleID + 1u].xyz;
@@ -77,19 +80,16 @@ fn intersectScene(ray : Ray) -> SceneIntersection {
 				break;
 			}
 		} else {
-			let firstChild = node.leftChildOrFirstTriangle & (~BVH_NODE_AXIS_MASK);
+			let firstChild = leftChildOrFirstTriangle & (~BVH_NODE_AXIS_MASK);
 
 			// Ordered traversal: visit closer child first (i.e. put closer child higher on the stack)
 
-			let nodeAxis = node.leftChildOrFirstTriangle >> BVH_NODE_AXIS_SHIFT;
+			let nodeAxis = leftChildOrFirstTriangle >> BVH_NODE_AXIS_SHIFT;
 
-			if (ray.direction[nodeAxis] > 0.0) {
-				nodeStack[nodeStackSize] = firstChild + 1u;
-				currentNodeID = firstChild;
-			} else {
-				nodeStack[nodeStackSize] = firstChild;
-				currentNodeID = firstChild + 1u;
-			}
+			let positive = u32(ray.direction[nodeAxis] > 0.0);
+
+			nodeStack[nodeStackSize] = firstChild + positive;
+			currentNodeID = firstChild + (1u - positive);
 
 			nodeStackSize += 1u;
 		}
@@ -112,7 +112,10 @@ fn lightSamplingProbability(ray : Ray) -> f32 {
 	while (true) {
 		let node = emissiveBvhNodes[currentNodeID];
 
-		let hit = intersectRayAABB(ray, vec3f(node.minX, node.minY, node.minZ), vec3f(node.maxX, node.maxY, node.maxZ));
+		let leftChildOrFirstTriangle = bitcast<u32>(node.aabbMin.w);
+		let triangleCount = bitcast<u32>(node.aabbMax.w);
+
+		let hit = intersectRayAABB(ray, node.aabbMin.xyz, node.aabbMax.xyz);
 
 		if (!hit.intersects) {
 			if (nodeStackSize > 0u) {
@@ -124,9 +127,9 @@ fn lightSamplingProbability(ray : Ray) -> f32 {
 			}
 		}
 
-		if (node.triangleCount > 0) {
-			for (var i = 0u; i < node.triangleCount; i += 1u) {
-				let triangleIndex = node.leftChildOrFirstTriangle + i;
+		if (triangleCount > 0) {
+			for (var i = 0u; i < triangleCount; i += 1u) {
+				let triangleIndex = leftChildOrFirstTriangle + i;
 				let triangleID = emissiveTriangles.triangles[triangleIndex];
 
 				let v0 = vertexPositions[3 * triangleID + 0u].xyz;
@@ -153,19 +156,16 @@ fn lightSamplingProbability(ray : Ray) -> f32 {
 				break;
 			}
 		} else {
-			let firstChild = node.leftChildOrFirstTriangle & (~BVH_NODE_AXIS_MASK);
+			let firstChild = leftChildOrFirstTriangle & (~BVH_NODE_AXIS_MASK);
 
 			// Ordered traversal: visit closer child first (i.e. put closer child higher on the stack)
 
-			let nodeAxis = node.leftChildOrFirstTriangle >> BVH_NODE_AXIS_SHIFT;
+			let nodeAxis = leftChildOrFirstTriangle >> BVH_NODE_AXIS_SHIFT;
 
-			if (ray.direction[nodeAxis] > 0.0) {
-				nodeStack[nodeStackSize] = firstChild + 1u;
-				currentNodeID = firstChild;
-			} else {
-				nodeStack[nodeStackSize] = firstChild;
-				currentNodeID = firstChild + 1u;
-			}
+			let positive = u32(ray.direction[nodeAxis] > 0.0);
+
+			nodeStack[nodeStackSize] = firstChild + positive;
+			currentNodeID = firstChild + (1u - positive);
 
 			nodeStackSize += 1u;
 		}

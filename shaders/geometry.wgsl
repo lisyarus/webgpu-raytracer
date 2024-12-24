@@ -7,16 +7,10 @@ struct Vertex
 
 struct BVHNode
 {
-	// Cannot declare min, max : vec3f
-	// because of vec3f alignment
-	minX : f32,
-	minY : f32,
-	minZ : f32,
-	maxX : f32,
-	maxY : f32,
-	maxZ : f32,
-	leftChildOrFirstTriangle : u32,
-	triangleCount : u32,
+	// leftChildOrFirstTriangle is aabbMin.w as uint
+	aabbMin : vec4f,
+	// triangleCount is aabbMax.w as uint
+	aabbMax : vec4f,
 }
 
 const MAX_BVH_DEPTH = 32u;

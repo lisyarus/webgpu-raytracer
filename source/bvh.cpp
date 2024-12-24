@@ -14,15 +14,20 @@ namespace
         maxDepth = std::max(depth, maxDepth);
 
         auto & node = bvh.nodes[nodeID];
+
+        AABB aabb;
         for (auto it = trianglesBegin; it != trianglesEnd; ++it)
-            node.aabb.extend(triangleAABB[*it]);
+            aabb.extend(triangleAABB[*it]);
+
+        node.aabbMin = aabb.min;
+        node.aabbMax = aabb.max;
 
         std::uint32_t const triangleCount = trianglesEnd - trianglesBegin;
 
         // Greedy surface-area heuristic: try all possible subdivisions into 2 child nodes
         // over all 3 possible axes to select the most optimal one
 
-        float nodeSelfCost = triangleCount * node.aabb.surfaceArea();
+        float nodeSelfCost = triangleCount * aabb.surfaceArea();
 
         std::uint32_t bestSplitAxis = 0;
         std::uint32_t bestSplitPosition = 0;
