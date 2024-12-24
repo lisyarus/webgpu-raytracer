@@ -169,9 +169,22 @@ Application::Application()
 
     // Get preferred format for this combination of surface + adapter
 
-    surfaceFormat_ = wgpuSurfaceGetPreferredFormat(surface_, adapter);
+    surfaceFormat_ = WGPUTextureFormat_BGRA8UnormSrgb;
+
+    WGPUSurfaceCapabilities surfaceCapabilities;
+    wgpuSurfaceGetCapabilities(surface_, adapter, &surfaceCapabilities);
+
+    auto formatsBegin = surfaceCapabilities.formats;
+    auto formatsEnd = surfaceCapabilities.formats + surfaceCapabilities.formatCount;
+    if (std::find(formatsBegin, formatsEnd, surfaceFormat_) == formatsEnd)
+        throw std::runtime_error("Surface doesn't support BRGA8 sRGB format");
 
     std::cout << "Surface format: " << surfaceFormat_ << std::endl;
+    std::cout << "Supported formats:\n";
+
+    for (auto it = formatsBegin; it != formatsEnd; ++it)
+        std::cout << "    " << *it << "\n";
+    std::cout << std::flush;
 
     // Configure the surface to be presented
 

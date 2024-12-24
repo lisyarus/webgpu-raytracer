@@ -19,5 +19,5 @@ fn vertexMain(@builtin(vertex_index) index : u32) -> @builtin(position) vec4f {
 @fragment
 fn fragmentMain(@builtin(position) fragmentPosition : vec4f) -> @location(0) vec4f {
 	let linearColor = textureLoad(accumulationTexture, vec2i(fragmentPosition.xy), 0).rgb;
-	return vec4f(gammaCorrect(acesToneMap(linearColor)), 1.0);
+	return vec4f(gammaCorrect(tonemap(linearColor)), 1.0);
 }

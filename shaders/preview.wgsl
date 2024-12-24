@@ -68,7 +68,7 @@ fn fragmentMain(in : VertexOutput, @builtin(front_facing) front_facing : bool) -
 
 	let color = mix(litColor, reflectedColor, metallic);
 
-	return vec4f(gammaCorrect(acesToneMap(color)), 1.0);
+	return vec4f(gammaCorrect(tonemap(color)), 1.0);
 }
 
 struct BackgroundVertexOutput
@@ -99,5 +99,5 @@ fn backgroundFragmentMain(in : BackgroundVertexOutput) -> @location(0) vec4f
 {
 	let direction = in.worldSpacePosition - camera.position;
 	let color = sampleEnvMap(environmentMap, direction);
-	return vec4f(gammaCorrect(acesToneMap(color)), 1.0);
+	return vec4f(gammaCorrect(tonemap(color)), 1.0);
 }
