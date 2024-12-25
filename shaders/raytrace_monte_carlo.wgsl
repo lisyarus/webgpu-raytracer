@@ -177,7 +177,8 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
 
 	let cameraRay = computeCameraRay(camera.position, camera.viewProjectionInverseMatrix, screenPosition * vec2f(1.0, -1.0));
 
-	let color = raytraceMonteCarlo(cameraRay, &randomState);
+	// No idea where negative values come from :(
+	let color = max(vec3f(0.0), raytraceMonteCarlo(cameraRay, &randomState));
 	let alpha = 1.0 / (f32(camera.frameID) + 1.0);
 
 	if (id.x < camera.screenSize.x && id.y < camera.screenSize.y) {
