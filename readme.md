@@ -38,11 +38,11 @@ If the camera changes in raytracing mode, the raytracing result is discarded and
 
 With no promises of implementing any of this, in no particular order:
 * ✅ Support environment maps & a fixed-color environment
+* ✅ Sample emissive triangles in proportion to area & intensity (probably using [Vose alias method](https://en.wikipedia.org/wiki/Alias_method))
 * Implement refraction + VNDF
 * Support albedo, material & normal maps
 * Incorporate [tinybvh](https://github.com/jbikker/tinybvh) and test different BVH variants for performance
 * Implement wavefront path-tracing
-* Sample emissive triangles in proportion to area & intensity (probably using the [alias method](https://en.wikipedia.org/wiki/Alias_method))
 * Support GLB input scenes
 
 # Building
