@@ -130,6 +130,7 @@ Application::Application()
     WGPURequiredLimits requiredLimits;
     requiredLimits.nextInChain = nullptr;
     requiredLimits.limits = supportedLimits.limits;
+    requiredLimits.limits.maxBufferSize = 1024 * 1024 * 1024;
 
     WGPUFeatureName requiredFeatures[3]
     {
