@@ -19,6 +19,10 @@ const BVH_NODE_AXIS_MASK = 3u << 30u;
 const BVH_NODE_AXIS_SHIFT = 30u;
 
 struct TriangleArray {
-	count : u32,
-	triangles : array<u32>,
+	// count.y is unused
+	count : vec2u,
+
+	// triangle.x is triangle ID
+	// triangle.y is triangle weight (sampling probability)
+	triangles : array<vec2u>,
 }

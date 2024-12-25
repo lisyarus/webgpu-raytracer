@@ -3,6 +3,7 @@
 #include <webgpu-raytracer/material_bind_group.hpp>
 #include <webgpu-raytracer/geometry_bind_group.hpp>
 #include <webgpu-raytracer/bvh.hpp>
+#include <webgpu-raytracer/alias.hpp>
 #include <stb_image.h>
 
 #include <glm/glm.hpp>
@@ -426,33 +427,78 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
     }
 
     std::vector<AABB> emissiveTriangleAABB(emissiveTriangles.size());
+    std::vector<float> emissiveTriangleWeight(emissiveTriangles.size());
+    float emissiveTrianglesTotalWeight = 0.f;
+
     for (std::uint32_t i = 0; i < emissiveTriangleAABB.size(); ++i)
     {
         auto triangleID = emissiveTriangles[i];
-        emissiveTriangleAABB[i].extend(vertices[3 * triangleID + 0].position);
-        emissiveTriangleAABB[i].extend(vertices[3 * triangleID + 1].position);
-        emissiveTriangleAABB[i].extend(vertices[3 * triangleID + 2].position);
+
+        auto v0 = vertices[3 * triangleID + 0].position;
+        auto v1 = vertices[3 * triangleID + 1].position;
+        auto v2 = vertices[3 * triangleID + 2].position;
+
+        emissiveTriangleAABB[i].extend(v0);
+        emissiveTriangleAABB[i].extend(v1);
+        emissiveTriangleAABB[i].extend(v2);
+
+        float areaWeight = glm::length(glm::cross(v1 - v0, v2 - v0));
+
+        auto materialID = vertexAttributes[3 * triangleID + 0].materialID;
+
+        // Weight based on percieved luminance
+        float emissiveWeight = glm::dot(glm::vec3(0.299f, 0.587f, 0.114f), glm::vec3(materials[materialID].emissiveFactor));
+
+        float weight = areaWeight * emissiveWeight;
+
+        emissiveTriangleWeight[i] = weight;
+        emissiveTrianglesTotalWeight += weight;
     }
 
+    for (auto & weight : emissiveTriangleWeight)
+        weight /= emissiveTrianglesTotalWeight;
+
     BVH emissiveBvh = buildBVH(emissiveTriangleAABB);
+    auto emissiveAliasTable = generateAlias(emissiveTriangleWeight);
+
+    struct TriangleIndexAndProbability
+    {
+        std::uint32_t index;
+        float probability;
+    };
+
+    // Instead of storing triangleID's per light BVH node, store triangles
+    // themselves, thereby removing the need for extra indirection in the shader
+
+    std::vector<TriangleIndexAndProbability> sortedEmissiveTriangles;
+    std::vector<AliasRecord> sortedEmissiveAliasTable;
+
+    // First element is actually the array size, see geometry.wgsl
+    sortedEmissiveTriangles.push_back({(std::uint32_t)emissiveTriangles.size(), 0.f});
 
     {
-        // Instead of storing triangleID's per light BVH node, store triangles
-        // themselves, thereby removing the need for extra indirection in the shader
-
-        std::vector<std::uint32_t> sortedEmissiveTriangles;
-
-        // First element is actually the array size, see geometry.wgsl
-        sortedEmissiveTriangles.push_back(emissiveBvh.triangleIDs.size());
+        std::vector<std::uint32_t> sortedTrianglesNewID(emissiveTriangles.size());
 
         for (auto triangleIndex : emissiveBvh.triangleIDs)
-            sortedEmissiveTriangles.push_back(emissiveTriangles[triangleIndex]);
+        {
+            sortedTrianglesNewID[triangleIndex] = sortedEmissiveTriangles.size() - 1;
+            sortedEmissiveTriangles.push_back({emissiveTriangles[triangleIndex], emissiveTriangleWeight[triangleIndex]});
+        }
+
+        for (auto triangleIndex : emissiveBvh.triangleIDs){
+            auto aliasRecord = emissiveAliasTable[triangleIndex];
+            sortedEmissiveAliasTable.push_back({
+                .probability = aliasRecord.probability,
+                .alias = sortedTrianglesNewID[aliasRecord.alias],
+            });
+        }
 
         // Prevent the triangle buffer from being empty
         if (emissiveBvh.triangleIDs.empty())
-            sortedEmissiveTriangles.push_back(0);
-
-        emissiveTriangles = std::move(sortedEmissiveTriangles);
+        {
+            sortedEmissiveTriangles.push_back({0, 0.f});
+            sortedEmissiveAliasTable.push_back({1.f, 0});
+        }
     }
 
     WGPUBufferDescriptor vertexPositionsBufferDescriptor;
@@ -499,11 +545,21 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
     emissiveTrianglesBufferDescriptor.nextInChain = nullptr;
     emissiveTrianglesBufferDescriptor.label = nullptr;
     emissiveTrianglesBufferDescriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
-    emissiveTrianglesBufferDescriptor.size = emissiveTriangles.size() * sizeof(emissiveTriangles[0]);
+    emissiveTrianglesBufferDescriptor.size = sortedEmissiveTriangles.size() * sizeof(sortedEmissiveTriangles[0]);
     emissiveTrianglesBufferDescriptor.mappedAtCreation = false;
 
     emissiveTrianglesBuffer_ = wgpuDeviceCreateBuffer(device, &emissiveTrianglesBufferDescriptor);
-    wgpuQueueWriteBuffer(queue, emissiveTrianglesBuffer_, 0, emissiveTriangles.data(), emissiveTrianglesBufferDescriptor.size);
+    wgpuQueueWriteBuffer(queue, emissiveTrianglesBuffer_, 0, sortedEmissiveTriangles.data(), emissiveTrianglesBufferDescriptor.size);
+
+    WGPUBufferDescriptor emissiveTrianglesAliasBufferDescriptor;
+    emissiveTrianglesAliasBufferDescriptor.nextInChain = nullptr;
+    emissiveTrianglesAliasBufferDescriptor.label = nullptr;
+    emissiveTrianglesAliasBufferDescriptor.usage = WGPUBufferUsage_CopyDst | WGPUBufferUsage_Storage;
+    emissiveTrianglesAliasBufferDescriptor.size = sortedEmissiveAliasTable.size() * sizeof(sortedEmissiveAliasTable[0]);
+    emissiveTrianglesAliasBufferDescriptor.mappedAtCreation = false;
+
+    emissiveTrianglesAliasBuffer_ = wgpuDeviceCreateBuffer(device, &emissiveTrianglesAliasBufferDescriptor);
+    wgpuQueueWriteBuffer(queue, emissiveTrianglesAliasBuffer_, 0, sortedEmissiveAliasTable.data(), emissiveTrianglesAliasBufferDescriptor.size);
 
     WGPUBufferDescriptor emissiveBvhNodesBufferDescriptor;
     emissiveBvhNodesBufferDescriptor.nextInChain = nullptr;
@@ -675,7 +731,7 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
     environmentTextureView_ = wgpuTextureCreateView(environmentTexture_, &environmentTextureViewDescriptor);
 
     geometryBindGroup_ = createGeometryBindGroup(device, geometryBindGroupLayout, vertexPositionsBuffer_, vertexAttributesBuffer_,
-        bvhNodesBuffer_, emissiveTrianglesBuffer_, emissiveBvhNodesBuffer_);
+        bvhNodesBuffer_, emissiveTrianglesBuffer_, emissiveTrianglesAliasBuffer_, emissiveBvhNodesBuffer_);
     materialBindGroup_ = createMaterialBindGroup(device, materialBindGroupLayout, materialBuffer_, sampler_, albedoTextureView_, materialTextureView_, environmentTextureView_);
 }
 
@@ -694,6 +750,7 @@ SceneData::~SceneData()
     wgpuTextureRelease(albedoTexture_);
 
     wgpuBufferRelease(emissiveBvhNodesBuffer_);
+    wgpuBufferRelease(emissiveTrianglesAliasBuffer_);
     wgpuBufferRelease(emissiveTrianglesBuffer_);
     wgpuBufferRelease(bvhNodesBuffer_);
     wgpuBufferRelease(materialBuffer_);

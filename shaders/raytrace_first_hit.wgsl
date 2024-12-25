@@ -9,7 +9,8 @@ use raytrace_common.wgsl;
 @group(1) @binding(1) var<storage, read> vertexAttributes : array<Vertex>;
 @group(1) @binding(2) var<storage, read> bvhNodes : array<BVHNode>;
 @group(1) @binding(3) var<storage, read> emissiveTriangles : TriangleArray;
-@group(1) @binding(4) var<storage, read> emissiveBvhNodes : array<BVHNode>;
+@group(1) @binding(4) var<storage, read> emissiveAliasTable : array<vec2u>;
+@group(1) @binding(5) var<storage, read> emissiveBvhNodes : array<BVHNode>;
 
 @group(2) @binding(0) var<storage, read> materials : array<Material>;
 

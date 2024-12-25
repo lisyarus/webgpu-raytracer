@@ -12,7 +12,8 @@ use env_map.wgsl;
 @group(1) @binding(1) var<storage, read> vertexAttributes : array<Vertex>;
 @group(1) @binding(2) var<storage, read> bvhNodes : array<BVHNode>;
 @group(1) @binding(3) var<storage, read> emissiveTriangles : TriangleArray;
-@group(1) @binding(4) var<storage, read> emissiveBvhNodes : array<BVHNode>;
+@group(1) @binding(4) var<storage, read> emissiveAliasTable : array<vec2u>;
+@group(1) @binding(5) var<storage, read> emissiveBvhNodes : array<BVHNode>;
 
 @group(2) @binding(0) var<storage, read> materials : array<Material>;
 @group(2) @binding(1) var environmentMap : texture_storage_2d<rgba32float, read>;
@@ -81,7 +82,7 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 			//                transmission = 1 : vndf + transmission vndf
 
 			var cosineSamplingWeight = (1.0 - metallic) * (1.0 - transmission);
-			var lightSamplingWeight = (1.0 - metallic) * (1.0 - transmission) * select(0.0, 1.0, emissiveTriangles.count > 0u);
+			var lightSamplingWeight = (1.0 - metallic) * (1.0 - transmission) * select(0.0, 1.0, emissiveTriangles.count.x > 0u);
 			var vndfSamplingWeight = 1.0 - (1.0 - metallic) * roughness;
 			var vndfTransmissionWeight = transmission;
 
@@ -101,8 +102,17 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 			} else if (strategyPick < cosineSamplingWeight + vndfSamplingWeight + vndfTransmissionWeight) {
 				newRay.direction = sampleTransmissionVNDF(randomState, shadingNormal, -currentRay.direction, roughness);
 			} else {
-				let lightTriangleIndex = uniformUint(randomState, emissiveTriangles.count);
-				let lightTriangle = emissiveTriangles.triangles[lightTriangleIndex];
+				let lightPick = f32(emissiveTriangles.count.x) * uniformFloat(randomState);
+				var lightTriangleIndex = min(emissiveTriangles.count.x - 1, u32(floor(lightPick)));
+				let lightTriangleAliasRecord = emissiveAliasTable[lightTriangleIndex];
+				let lightSamplingProbability = bitcast<f32>(lightTriangleAliasRecord.x);
+				let lightTriangleAlias = lightTriangleAliasRecord.y;
+
+				if (lightPick - f32(lightTriangleIndex) > lightSamplingProbability) {
+					lightTriangleIndex = lightTriangleAlias;
+				}
+
+				let lightTriangle = emissiveTriangles.triangles[lightTriangleIndex].x;
 
 				var lightUV = vec2f(uniformFloat(randomState), uniformFloat(randomState));
 				if (dot(lightUV, vec2f(1.0)) > 1.0) {
