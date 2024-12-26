@@ -28,7 +28,7 @@ RaytraceMonteCarloPipeline::RaytraceMonteCarloPipeline(WGPUDevice device, Shader
     pipelineDescriptor.compute.nextInChain = nullptr;
     pipelineDescriptor.compute.module = shaderModule;
     pipelineDescriptor.compute.entryPoint = "computeMain";
-    pipelineDescriptor.compute.constantCount = 1;
+    pipelineDescriptor.compute.constantCount = 0;
     pipelineDescriptor.compute.constants = nullptr;
 
     pipeline_ = wgpuDeviceCreateComputePipeline(device, &pipelineDescriptor);
