@@ -23,10 +23,10 @@ fn det(v0 : vec3f, v1 : vec3f, v2 : vec3f) -> f32 {
 
 fn solve3x3Equation(matrix : mat3x3f, rhs : vec3f) -> vec3f {
 	// Use Cramer's rule to solve the system
-	let det = det(matrix[0], matrix[1], matrix[2]);
+	let d = det(matrix[0], matrix[1], matrix[2]);
 	let d0 = det(rhs, matrix[1], matrix[2]);
 	let d1 = det(matrix[0], rhs, matrix[2]);
 	let d2 = det(matrix[0], matrix[1], rhs);
 
-	return vec3f(d0, d1, d2) / det;
+	return vec3f(d0, d1, d2) / d;
 }
