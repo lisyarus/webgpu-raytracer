@@ -10,3 +10,6 @@
 	path = rapidjson
 	url = https://github.com/Tencent/rapidjson.git
 	shallow = true
+[submodule "MikkTSpace"]
+	path = MikkTSpace
+	url = https://github.com/mmikk/MikkTSpace.git

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.20)
 project(webgpu-raytracer)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -16,6 +16,7 @@ add_executable(webgpu-raytracer
 	${WEBGPU_RAYTRACER_HEADERS}
 	${WEBGPU_RAYTRACER_SOURCES}
 	${WEBGPU_RAYTRACER_SHADERS}
+	"${CMAKE_CURRENT_SOURCE_DIR}/MikkTSpace/mikktspace.c"
 )
 
 target_link_libraries(webgpu-raytracer
@@ -28,6 +29,7 @@ target_include_directories(webgpu-raytracer PUBLIC
 	"${CMAKE_CURRENT_SOURCE_DIR}/glm"
 	"${CMAKE_CURRENT_SOURCE_DIR}/rapidjson/include"
 	"${CMAKE_CURRENT_SOURCE_DIR}/stb"
+	"${CMAKE_CURRENT_SOURCE_DIR}/MikkTSpace"
 )
 
 target_compile_definitions(webgpu-raytracer PUBLIC

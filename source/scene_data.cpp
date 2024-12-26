@@ -5,6 +5,7 @@
 #include <webgpu-raytracer/bvh.hpp>
 #include <webgpu-raytracer/alias.hpp>
 #include <stb_image.h>
+#include <mikktspace.h>
 
 #include <glm/glm.hpp>
 
@@ -17,11 +18,12 @@ namespace
     {
         glm::vec3 normal;
         std::uint32_t materialID;
+        glm::vec4 tangent;
         glm::vec2 texcoords;
         char padding[8];
     };
 
-    static_assert(sizeof(VertexAttributes) == 32);
+    static_assert(sizeof(VertexAttributes) == 48);
 
     struct Vertex
     {
@@ -179,6 +181,105 @@ namespace
         }
     }
 
+    void readTangents(glTF::Asset const & asset, glTF::Accessor const & tangentAccessor, std::vector<Vertex> & vertices, std::uint32_t baseVertex)
+    {
+        auto vertexIt = vertices.begin() + baseVertex;
+
+        switch (tangentAccessor.componentType)
+        {
+        case glTF::Accessor::ComponentType::Float:
+            for (auto tangent : glTF::AccessorRange<glm::vec4>(asset, tangentAccessor))
+            {
+                vertexIt->attributes.tangent = tangent;
+                ++vertexIt;
+            }
+            break;
+        default:
+            std::cout << "Warning: unsupported tangent component type: " << (int)tangentAccessor.componentType << "\n";
+
+            // Prevent uninitialized data
+            for (std::uint32_t i = 0; i < tangentAccessor.count; ++i)
+            {
+                vertexIt->attributes.tangent = glm::vec4(1.f, 0.f, 0.f, 1.f);
+                ++vertexIt;
+            }
+            break;
+        }
+    }
+
+    void reconstructTangents(std::vector<Vertex> & vertices, std::vector<std::uint32_t> const & indices, std::uint32_t baseVertex, std::uint32_t baseIndex,
+        std::uint32_t vertexCount, std::uint32_t indexCount)
+    {
+        struct Context
+        {
+            Vertex * vertices;
+            std::uint32_t const * indices;
+            std::uint32_t vertexCount;
+            std::uint32_t indexCount;
+        };
+
+        Context context
+        {
+            .vertices = vertices.data(),
+            .indices = indices.data() + baseIndex,
+            .vertexCount = vertexCount,
+            .indexCount = indexCount,
+        };
+
+        SMikkTSpaceInterface mikkTSpaceInterface
+        {
+            .m_getNumFaces = [](SMikkTSpaceContext const * pContext) -> int
+            {
+                return ((Context *)(pContext->m_pUserData))->indexCount / 3;
+            },
+            .m_getNumVerticesOfFace = [](SMikkTSpaceContext const *, int) -> int
+            {
+                return 3;
+            },
+            .m_getPosition = [](SMikkTSpaceContext const * pContext, float * fvPosOut, int iFace, int iVert)
+            {
+                auto context = (Context *)(pContext->m_pUserData);
+                auto const & vertex = context->vertices[context->indices[3 * iFace + iVert]];
+                fvPosOut[0] = vertex.position.x;
+                fvPosOut[1] = vertex.position.y;
+                fvPosOut[2] = vertex.position.z;
+            },
+            .m_getNormal = [](SMikkTSpaceContext const * pContext, float * fvNormOut, int iFace, int iVert)
+            {
+                auto context = (Context *)(pContext->m_pUserData);
+                auto const & vertex = context->vertices[context->indices[3 * iFace + iVert]];
+                fvNormOut[0] = vertex.attributes.normal.x;
+                fvNormOut[1] = vertex.attributes.normal.y;
+                fvNormOut[2] = vertex.attributes.normal.z;
+            },
+            .m_getTexCoord = [](SMikkTSpaceContext const * pContext, float * fvTexcOut, int iFace, int iVert)
+            {
+                auto context = (Context *)(pContext->m_pUserData);
+                auto const & vertex = context->vertices[context->indices[3 * iFace + iVert]];
+                fvTexcOut[0] = vertex.attributes.texcoords.x;
+                fvTexcOut[1] = vertex.attributes.texcoords.y;
+            },
+            .m_setTSpaceBasic = [](SMikkTSpaceContext const * pContext, float const * fvTangent, float fSign, int iFace, int iVert)
+            {
+                auto context = (Context *)(pContext->m_pUserData);
+                auto & vertex = context->vertices[context->indices[3 * iFace + iVert]];
+                vertex.attributes.tangent.x = fvTangent[0];
+                vertex.attributes.tangent.y = fvTangent[1];
+                vertex.attributes.tangent.z = fvTangent[2];
+                vertex.attributes.tangent.w = fSign;
+            },
+            .m_setTSpace = nullptr,
+        };
+
+        SMikkTSpaceContext mikkTSpaceContext
+        {
+            .m_pInterface = &mikkTSpaceInterface,
+            .m_pUserData = &context,
+        };
+
+        genTangSpaceDefault(&mikkTSpaceContext);
+    }
+
 }
 
 SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap, WGPUDevice device, WGPUQueue queue,
@@ -221,6 +322,7 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
             glTF::Accessor const * positionAccessor = nullptr;
             glTF::Accessor const * normalAccessor = nullptr;
             glTF::Accessor const * texcoordAccessor = nullptr;
+            glTF::Accessor const * tangentAccessor = nullptr;
 
             if (primitive.indices) indexAccessor = &asset.accessors[*primitive.indices];
 
@@ -228,6 +330,7 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
 
             if (primitive.attributes.normal) normalAccessor = &asset.accessors[*primitive.attributes.normal];
             if (primitive.attributes.texcoord) texcoordAccessor = &asset.accessors[*primitive.attributes.texcoord];
+            if (primitive.attributes.tangent) tangentAccessor = &asset.accessors[*primitive.attributes.tangent];
 
             // Read indices
 
@@ -259,6 +362,12 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
             else
                 fillDefaultTexcoords(vertices, baseVertex, positionAccessor->count);
 
+            // Read tangents
+            if (tangentAccessor)
+                readTangents(asset, *tangentAccessor, vertices, baseVertex);
+            else
+                reconstructTangents(vertices, indices, baseVertex, baseIndex, positionAccessor->count, indexCount);
+
             std::uint32_t materialID = primitive.material ? 1 + *primitive.material : 0;
 
             for (std::uint32_t i = 0; i < positionAccessor->count; ++i)
@@ -274,6 +383,7 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
 
     glm::uvec2 maxAlbedoTextureSize(1);
     glm::uvec2 maxMaterialTextureSize(1);
+    glm::uvec2 maxNormalTextureSize(1);
 
     struct Image
     {
@@ -284,9 +394,11 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
 
     std::vector<Image> albedoImages;
     std::vector<Image> materialImages;
+    std::vector<Image> normalImages;
 
     std::unordered_map<std::uint32_t, std::uint32_t> glTFImageToAlbedoArrayLayer;
     std::unordered_map<std::uint32_t, std::uint32_t> glTFImageToMaterialArrayLayer;
+    std::unordered_map<std::uint32_t, std::uint32_t> glTFImageToNormalArrayLayer;
 
     albedoImages.push_back({
         .width = 1,
@@ -295,6 +407,12 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
     });
 
     materialImages.push_back({
+        .width = 1,
+        .height = 1,
+        .pixels = nullptr,
+    });
+
+    normalImages.push_back({
         .width = 1,
         .height = 1,
         .pixels = nullptr,
@@ -357,6 +475,31 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
                 }
             }
         }
+
+        if (materialIn.normalTexture)
+        {
+            if (auto sourceImage = asset.textures[*materialIn.normalTexture].source)
+            {
+                if (glTFImageToNormalArrayLayer.contains(*sourceImage))
+                {
+                    material.textureLayers.z = glTFImageToNormalArrayLayer.at(*sourceImage);
+                }
+                else
+                {
+                    auto const & image = asset.images[*sourceImage];
+                    maxNormalTextureSize = glm::max(maxNormalTextureSize, glm::uvec2(image.width, image.height));
+
+                    glTFImageToNormalArrayLayer[*sourceImage] = normalImages.size();
+                    material.textureLayers.z = normalImages.size();
+
+                    normalImages.push_back({
+                        .width = image.width,
+                        .height = image.height,
+                        .pixels = image.data.data(),
+                    });
+                }
+            }
+        }
     }
 
     std::vector<std::uint32_t> whiteAlbedoPixels(maxAlbedoTextureSize.x * maxAlbedoTextureSize.y, 0xffffffffu);
@@ -368,6 +511,11 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
     materialImages[0].width = maxMaterialTextureSize.x;
     materialImages[0].height = maxMaterialTextureSize.y;
     materialImages[0].pixels = whiteMaterialPixels.data();
+
+    std::vector<std::uint32_t> blueNormalPixels(maxNormalTextureSize.x * maxNormalTextureSize.y, 0xffff7f7f);
+    normalImages[0].width = maxNormalTextureSize.x;
+    normalImages[0].height = maxNormalTextureSize.y;
+    normalImages[0].pixels = blueNormalPixels.data();
 
     std::vector<AABB> triangleAABB(indices.size() / 3);
     for (std::uint32_t i = 0; i < triangleAABB.size(); ++i)
@@ -685,6 +833,54 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
         wgpuQueueWriteTexture(queue, &textureDestination, materialImages[layer].pixels, materialImages[layer].width * materialImages[layer].height * 4, &textureDataLayout, &textureWriteSize);
     }
 
+    WGPUTextureDescriptor normalTextureDescriptor;
+    normalTextureDescriptor.nextInChain = nullptr;
+    normalTextureDescriptor.label = nullptr;
+    normalTextureDescriptor.usage = WGPUTextureUsage_CopyDst | WGPUTextureUsage_TextureBinding;
+    normalTextureDescriptor.dimension = WGPUTextureDimension_2D;
+    normalTextureDescriptor.size = {maxNormalTextureSize.x, maxNormalTextureSize.y, (std::uint32_t)normalImages.size()};
+    normalTextureDescriptor.format = WGPUTextureFormat_RGBA8Unorm;
+    normalTextureDescriptor.mipLevelCount = 1;
+    normalTextureDescriptor.sampleCount = 1;
+    normalTextureDescriptor.viewFormatCount = 0;
+    normalTextureDescriptor.viewFormats = nullptr;
+    normalTexture_ = wgpuDeviceCreateTexture(device, &normalTextureDescriptor);
+
+    WGPUTextureViewDescriptor normalTextureViewDescriptor;
+    normalTextureViewDescriptor.nextInChain = nullptr;
+    normalTextureViewDescriptor.label = nullptr;
+    normalTextureViewDescriptor.format = WGPUTextureFormat_RGBA8Unorm;
+    normalTextureViewDescriptor.dimension = WGPUTextureViewDimension_2DArray;
+    normalTextureViewDescriptor.baseMipLevel = 0;
+    normalTextureViewDescriptor.mipLevelCount = 1;
+    normalTextureViewDescriptor.baseArrayLayer = 0;
+    normalTextureViewDescriptor.arrayLayerCount = normalImages.size();
+    normalTextureViewDescriptor.aspect = WGPUTextureAspect_All;
+    normalTextureView_ = wgpuTextureCreateView(normalTexture_, &normalTextureViewDescriptor);
+
+    for (std::uint32_t layer = 0; layer < normalImages.size(); ++layer)
+    {
+        WGPUImageCopyTexture textureDestination;
+        textureDestination.nextInChain = nullptr;
+        textureDestination.texture = normalTexture_;
+        textureDestination.mipLevel = 0;
+        textureDestination.origin = {0, 0, layer};
+        textureDestination.aspect = WGPUTextureAspect_All;
+
+        WGPUTextureDataLayout textureDataLayout;
+        textureDataLayout.nextInChain = nullptr;
+        textureDataLayout.offset = 0;
+        textureDataLayout.bytesPerRow = normalImages[layer].width * 4;
+        textureDataLayout.rowsPerImage = normalImages[layer].height;
+
+        WGPUExtent3D textureWriteSize;
+        textureWriteSize.width = normalImages[layer].width;
+        textureWriteSize.height = normalImages[layer].height;
+        textureWriteSize.depthOrArrayLayers = 1;
+
+        wgpuQueueWriteTexture(queue, &textureDestination, normalImages[layer].pixels, normalImages[layer].width * normalImages[layer].height * 4, &textureDataLayout, &textureWriteSize);
+    }
+
     WGPUTextureDescriptor environmentTextureDescriptor;
     environmentTextureDescriptor.nextInChain = nullptr;
     environmentTextureDescriptor.label = nullptr;
@@ -732,7 +928,8 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
 
     geometryBindGroup_ = createGeometryBindGroup(device, geometryBindGroupLayout, vertexPositionsBuffer_, vertexAttributesBuffer_,
         bvhNodesBuffer_, emissiveTrianglesBuffer_, emissiveTrianglesAliasBuffer_, emissiveBvhNodesBuffer_);
-    materialBindGroup_ = createMaterialBindGroup(device, materialBindGroupLayout, materialBuffer_, sampler_, albedoTextureView_, materialTextureView_, environmentTextureView_);
+    materialBindGroup_ = createMaterialBindGroup(device, materialBindGroupLayout, materialBuffer_, sampler_,
+        albedoTextureView_, materialTextureView_, normalTextureView_, environmentTextureView_);
 }
 
 SceneData::~SceneData()
@@ -742,6 +939,9 @@ SceneData::~SceneData()
 
     wgpuTextureViewRelease(environmentTextureView_);
     wgpuTextureRelease(environmentTexture_);
+
+    wgpuTextureViewRelease(normalTextureView_);
+    wgpuTextureRelease(normalTexture_);
 
     wgpuTextureViewRelease(materialTextureView_);
     wgpuTextureRelease(materialTexture_);

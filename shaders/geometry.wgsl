@@ -2,6 +2,7 @@ struct Vertex
 {
 	normal : vec3f,
 	materialID : u32,
+	tangent : vec4f,
 	texcoord : vec2f,
 }
 

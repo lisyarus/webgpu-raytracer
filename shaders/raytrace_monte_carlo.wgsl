@@ -20,6 +20,7 @@ use env_map.wgsl;
 @group(2) @binding(2) var textureSampler : sampler;
 @group(2) @binding(3) var albedoTexture : texture_2d_array<f32>;
 @group(2) @binding(4) var materialTexture : texture_2d_array<f32>;
+@group(2) @binding(5) var normalTexture : texture_2d_array<f32>;
 
 @group(3) @binding(0) var accumulationTexture : texture_storage_2d<rgba32float, read_write>;
 
@@ -54,6 +55,7 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 			}
 
 			let materialSample = textureSampleLevel(materialTexture, textureSampler, texcoord, material.textureLayers.y, 0.0);
+			let normalSample = textureSampleLevel(normalTexture, textureSampler, texcoord, material.textureLayers.z, 0.0);
 
 			let baseColor = material.baseColorFactorAndTransmission.rgb * albedoSample.rgb;
 			let metallic = material.metallicRoughnessFactorAndIor.b * materialSample.b;
@@ -71,6 +73,11 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 				shadingNormal = -shadingNormal;
 				ior = 1.0 / ior;
 			}
+
+			let tangent = normalize(v0.tangent.xyz + intersection.uv.x * (v1.tangent.xyz - v0.tangent.xyz) + intersection.uv.y * (v2.tangent.xyz - v0.tangent.xyz));
+			let bitangent = v0.tangent.w * normalize(cross(shadingNormal, tangent));
+
+			shadingNormal = normalize(mat3x3f(tangent, bitangent, shadingNormal) * (normalSample.xyz * 2.0 - vec3f(1.0)));
 
 			var newRay = Ray(intersectionPoint, vec3f(0.0));
 

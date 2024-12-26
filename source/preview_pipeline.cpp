@@ -24,25 +24,28 @@ PreviewPipeline::PreviewPipeline(WGPUDevice device, ShaderRegistry & shaderRegis
     vertexPositionAttributes[0].offset = 0;
     vertexPositionAttributes[0].shaderLocation = 0;
 
-    WGPUVertexAttribute vertexAttributes[3];
+    WGPUVertexAttribute vertexAttributes[4];
     vertexAttributes[0].format = WGPUVertexFormat_Float32x3;
     vertexAttributes[0].offset = 0;
     vertexAttributes[0].shaderLocation = 1;
     vertexAttributes[1].format = WGPUVertexFormat_Uint32;
     vertexAttributes[1].offset = 12;
     vertexAttributes[1].shaderLocation = 2;
-    vertexAttributes[2].format = WGPUVertexFormat_Float32x2;
+    vertexAttributes[2].format = WGPUVertexFormat_Float32x4;
     vertexAttributes[2].offset = 16;
     vertexAttributes[2].shaderLocation = 3;
+    vertexAttributes[3].format = WGPUVertexFormat_Float32x2;
+    vertexAttributes[3].offset = 32;
+    vertexAttributes[3].shaderLocation = 4;
 
     WGPUVertexBufferLayout vertexBufferLayouts[2];
     vertexBufferLayouts[0].arrayStride = 16;
     vertexBufferLayouts[0].stepMode = WGPUVertexStepMode_Vertex;
     vertexBufferLayouts[0].attributeCount = 1;
     vertexBufferLayouts[0].attributes = vertexPositionAttributes;
-    vertexBufferLayouts[1].arrayStride = 32;
+    vertexBufferLayouts[1].arrayStride = 48;
     vertexBufferLayouts[1].stepMode = WGPUVertexStepMode_Vertex;
-    vertexBufferLayouts[1].attributeCount = 3;
+    vertexBufferLayouts[1].attributeCount = 4;
     vertexBufferLayouts[1].attributes = vertexAttributes;
 
     WGPUDepthStencilState depthStencilState;

@@ -17,7 +17,8 @@ struct VertexInput {
 	@location(0) position : vec3f,
 	@location(1) normal : vec3f,
 	@location(2) materialID : u32,
-	@location(3) texcoord : vec2f,
+	@location(3) tangent : vec4f,
+	@location(4) texcoord : vec2f,
 }
 
 struct VertexOutput {

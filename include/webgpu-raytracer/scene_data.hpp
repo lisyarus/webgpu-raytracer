@@ -44,6 +44,9 @@ private:
     WGPUTexture materialTexture_;
     WGPUTextureView materialTextureView_;
 
+    WGPUTexture normalTexture_;
+    WGPUTextureView normalTextureView_;
+
     WGPUTexture environmentTexture_;
     WGPUTextureView environmentTextureView_;
 
