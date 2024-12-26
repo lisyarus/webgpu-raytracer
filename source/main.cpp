@@ -103,6 +103,7 @@ int main(int argc, char ** argv) try
     for (bool running = true; running;)
     {
         bool cameraMoved = false;
+        bool screenResized = false;
 
         while (auto event = application.poll()) switch (event->type)
         {
@@ -114,6 +115,7 @@ int main(int argc, char ** argv) try
             {
             case SDL_WINDOWEVENT_RESIZED:
                 application.resize(event->window.data1, event->window.data2, false);
+                screenResized = true;
                 break;
             }
             break;
@@ -203,7 +205,7 @@ int main(int argc, char ** argv) try
             }
         }
 
-        if (cameraMoved)
+        if (cameraMoved || screenResized)
             renderer.setRenderMode(Renderer::Mode::Preview);
 
         renderer.renderFrame(surfaceTexture, camera, sceneData);

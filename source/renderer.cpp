@@ -30,8 +30,6 @@ private:
     WGPUQueue queue_;
     WGPUTextureFormat surfaceFormat_;
 
-    glm::uvec2 cachedScreenSize_{0, 0};
-
     WGPUTexture depthTexture_ = nullptr;
     WGPUTextureView depthTextureView_ = nullptr;
 
@@ -192,11 +190,6 @@ namespace
 void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData)
 {
     glm::uvec2 const screenSize{wgpuTextureGetWidth(surfaceTexture), wgpuTextureGetHeight(surfaceTexture)};
-
-    if (screenSize != cachedScreenSize_)
-        resetAccumulationBuffer();
-
-    cachedScreenSize_ = screenSize;
 
     camera_.update(queue_, camera, screenSize, frameID_, globalFrameID_);
 
