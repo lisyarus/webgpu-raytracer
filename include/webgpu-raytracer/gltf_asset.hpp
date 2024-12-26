@@ -133,8 +133,10 @@ namespace glTF
         std::string name;
 
         glm::mat4 matrix;
+        glm::mat4 globalMatrix;
 
         std::vector<std::uint32_t> children;
+        std::optional<std::uint32_t> parent;
         std::optional<std::uint32_t> mesh;
         std::optional<std::uint32_t> camera;
     };

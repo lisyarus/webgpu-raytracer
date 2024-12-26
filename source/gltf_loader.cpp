@@ -327,6 +327,22 @@ namespace glTF
             }
         }
 
+        for (std::uint32_t nodeID = 0; nodeID < result.nodes.size(); ++nodeID)
+        {
+            for (auto childID : result.nodes[nodeID].children)
+                result.nodes[childID].parent = nodeID;
+        }
+
+        for (auto & node : result.nodes)
+        {
+            node.globalMatrix = node.matrix;
+            for (auto parentID = node.parent; parentID;)
+            {
+                node.globalMatrix = result.nodes[*parentID].matrix * node.globalMatrix;
+                parentID = result.nodes[*parentID].parent;
+            }
+        }
+
         return result;
     }
 

@@ -300,7 +300,7 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
     {
         if (!node.mesh) continue;
 
-        glm::mat3 normalMatrix = glm::inverse(glm::transpose(glm::mat3(node.matrix)));
+        glm::mat3 normalMatrix = glm::inverse(glm::transpose(glm::mat3(node.globalMatrix)));
 
         for (auto const & primitive : asset.meshes[*node.mesh].primitives)
         {
@@ -374,8 +374,9 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
             {
                 auto & v = vertices[baseVertex + i];
 
-                v.position = glm::vec3(node.matrix * glm::vec4(v.position, 1.f));
+                v.position = glm::vec3(node.globalMatrix * glm::vec4(v.position, 1.f));
                 v.attributes.normal = glm::normalize(normalMatrix * v.attributes.normal);
+                v.attributes.tangent = glm::vec4(glm::normalize(glm::mat3(node.globalMatrix) * glm::vec3(v.attributes.tangent)), v.attributes.tangent.w);
                 v.attributes.materialID = materialID;
             }
         }
