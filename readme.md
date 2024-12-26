@@ -1,5 +1,7 @@
 ![](screenshots/combined.png)
 
+*See more screenshots in the [screenshots](screenshots) directory.*
+
 # About
 
 This is a GPU "software" raytracer (i.e. using manual ray-scene intersections and not RTX) written using the WebGPU API. It expects a single glTF scene as input. It supports flat-colored and textured materials with albedo, normal, and material maps. It doesn't support refraction (yet).
@@ -20,6 +22,7 @@ Here are all the controls:
 * Mouse (while pressing left mouse button): rotate the camera
 * `[Q][E]`: roll the camera
 * `[W][A][S][D]`: move the camera
+* `[LSHIFT][LCTRL]`: speed up / slow down camera controls
 * `[SPACE]`: activate raytracing
 
 If the camera changes in raytracing mode, the raytracing result is discarded and the preview mode is activated again (i.e. there's no temporal reprojection in this case).
