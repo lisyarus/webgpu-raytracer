@@ -107,6 +107,7 @@ void Profiler::poll()
 
             auto data = (PendingData *)userData;
             auto buffers = data->buffers;
+            auto parent = data->parent;
 
             auto values = (std::uint64_t const *)wgpuBufferGetConstMappedRange(buffers.mapBuffer, 0, RESOLVE_BUFFER_SIZE);
 
@@ -114,8 +115,8 @@ void Profiler::poll()
             {
                 double deltaTime = (values[i] - values[i - 1]) / 1e9;
 
-                std::lock_guard lock{data->parent->profilingResultsMutex_};
-                auto & result = data->parent->profilingResults_[data->names[i]];
+                std::lock_guard lock{parent->profilingResultsMutex_};
+                auto & result = parent->profilingResults_[data->names[i]];
                 result.count += 1;
                 result.totalTime += deltaTime;
             }
@@ -123,20 +124,20 @@ void Profiler::poll()
             wgpuBufferUnmap(buffers.mapBuffer);
 
             {
-                std::lock_guard lock{data->parent->pendingBuffersMutex_};
-                for (auto it = data->parent->pendingBuffers_.begin(); it != data->parent->pendingBuffers_.end(); ++it)
+                std::lock_guard lock{parent->pendingBuffersMutex_};
+                for (auto it = parent->pendingBuffers_.begin(); it != parent->pendingBuffers_.end(); ++it)
                 {
                     if (it->get() == data)
                     {
-                        data->parent->pendingBuffers_.erase(it);
+                        parent->pendingBuffers_.erase(it);
                         break;
                     }
                 }
             }
 
             {
-                std::lock_guard lock{data->parent->availableBuffersMutex_};
-                data->parent->availableBuffers_.push_back(buffers);
+                std::lock_guard lock{parent->availableBuffersMutex_};
+                parent->availableBuffers_.push_back(buffers);
             }
         };
 
