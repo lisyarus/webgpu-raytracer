@@ -171,6 +171,18 @@ int main(int argc, char ** argv) try
             float rotationSpeed = 1.f;
             float movementSpeed = 10.f; // TODO: select based on scene size
 
+            if (keysDown.contains(SDL_SCANCODE_LSHIFT))
+            {
+                rotationSpeed *= 10.f;
+                movementSpeed *= 10.f;
+            }
+
+            if (keysDown.contains(SDL_SCANCODE_LCTRL))
+            {
+                rotationSpeed /= 10.f;
+                movementSpeed /= 10.f;
+            }
+
             if (keysDown.contains(SDL_SCANCODE_Q))
             {
                 camera.rotateZ(- rotationSpeed * dt);
