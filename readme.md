@@ -2,7 +2,7 @@
 
 # About
 
-This is a GPU "software" raytracer (i.e. using manual ray-scene intersections and not RTX) written using the WebGPU API. It expects a single glTF scene as input. It only supports single-colored materials and no textures; it also doesn't support refraction.
+This is a GPU "software" raytracer (i.e. using manual ray-scene intersections and not RTX) written using the WebGPU API. It expects a single glTF scene as input. It supports flat-colored and textured materials with albedo, normal, and material maps. It doesn't support refraction (yet).
 
 There are a bunch of test scenes in the [test_scenes](test_scenes) directory.
 
@@ -39,8 +39,9 @@ If the camera changes in raytracing mode, the raytracing result is discarded and
 With no promises of implementing any of this, in no particular order:
 * ✅ Support environment maps & a fixed-color environment
 * ✅ Sample emissive triangles in proportion to area & intensity (probably using [Vose alias method](https://en.wikipedia.org/wiki/Alias_method))
+* ✅ Support albedo, material & normal maps
+* Sample environment map pixels in proportion to intensity (using the same alias method)
 * Implement refraction + VNDF
-* Support albedo, material & normal maps
 * Incorporate [tinybvh](https://github.com/jbikker/tinybvh) and test different BVH variants for performance
 * Implement wavefront path-tracing
 * Support GLB input scenes
