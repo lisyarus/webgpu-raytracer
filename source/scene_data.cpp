@@ -280,6 +280,37 @@ namespace
         genTangSpaceDefault(&mikkTSpaceContext);
     }
 
+    struct Image
+    {
+        std::uint32_t width;
+        std::uint32_t height;
+        std::uint32_t const * pixels;
+    };
+
+    std::vector<std::uint32_t> rescaleImage(Image & image, glm::uvec2 const & targetSize)
+    {
+        if (image.width == targetSize.x && image.height == targetSize.y)
+            return {};
+
+        std::vector<std::uint32_t> scaledPixels(targetSize.x * targetSize.y);
+
+        for (std::uint32_t y = 0; y < targetSize.y; ++y)
+        {
+            for (std::uint32_t x = 0; x < targetSize.x; ++x)
+            {
+                auto sx = (x * image.width) / targetSize.x;
+                auto sy = (y * image.height) / targetSize.y;
+                scaledPixels[x + y * targetSize.x] = image.pixels[sx + sy * image.width];
+            }
+        }
+
+        image.width = targetSize.x;
+        image.height = targetSize.y;
+        image.pixels = scaledPixels.data();
+
+        return scaledPixels;
+    }
+
 }
 
 SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap, WGPUDevice device, WGPUQueue queue,
@@ -385,13 +416,6 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
     glm::uvec2 maxAlbedoTextureSize(1);
     glm::uvec2 maxMaterialTextureSize(1);
     glm::uvec2 maxNormalTextureSize(1);
-
-    struct Image
-    {
-        std::uint32_t width;
-        std::uint32_t height;
-        std::uint32_t const * pixels;
-    };
 
     std::vector<Image> albedoImages;
     std::vector<Image> materialImages;
@@ -765,6 +789,10 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
 
     for (std::uint32_t layer = 0; layer < albedoImages.size(); ++layer)
     {
+        auto & image = albedoImages[layer];
+
+        std::vector<std::uint32_t> scaledPixels = rescaleImage(image, maxAlbedoTextureSize);
+
         WGPUImageCopyTexture textureDestination;
         textureDestination.nextInChain = nullptr;
         textureDestination.texture = albedoTexture_;
@@ -775,15 +803,15 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
         WGPUTextureDataLayout textureDataLayout;
         textureDataLayout.nextInChain = nullptr;
         textureDataLayout.offset = 0;
-        textureDataLayout.bytesPerRow = albedoImages[layer].width * 4;
-        textureDataLayout.rowsPerImage = albedoImages[layer].height;
+        textureDataLayout.bytesPerRow = image.width * 4;
+        textureDataLayout.rowsPerImage = image.height;
 
         WGPUExtent3D textureWriteSize;
-        textureWriteSize.width = albedoImages[layer].width;
-        textureWriteSize.height = albedoImages[layer].height;
+        textureWriteSize.width = image.width;
+        textureWriteSize.height = image.height;
         textureWriteSize.depthOrArrayLayers = 1;
 
-        wgpuQueueWriteTexture(queue, &textureDestination, albedoImages[layer].pixels, albedoImages[layer].width * albedoImages[layer].height * 4, &textureDataLayout, &textureWriteSize);
+        wgpuQueueWriteTexture(queue, &textureDestination, image.pixels, image.width * image.height * 4, &textureDataLayout, &textureWriteSize);
     }
 
     WGPUTextureDescriptor materialTextureDescriptor;
@@ -813,6 +841,10 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
 
     for (std::uint32_t layer = 0; layer < materialImages.size(); ++layer)
     {
+        auto & image = materialImages[layer];
+
+        std::vector<std::uint32_t> scaledPixels = rescaleImage(image, maxMaterialTextureSize);
+
         WGPUImageCopyTexture textureDestination;
         textureDestination.nextInChain = nullptr;
         textureDestination.texture = materialTexture_;
@@ -823,15 +855,15 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
         WGPUTextureDataLayout textureDataLayout;
         textureDataLayout.nextInChain = nullptr;
         textureDataLayout.offset = 0;
-        textureDataLayout.bytesPerRow = materialImages[layer].width * 4;
-        textureDataLayout.rowsPerImage = materialImages[layer].height;
+        textureDataLayout.bytesPerRow = image.width * 4;
+        textureDataLayout.rowsPerImage = image.height;
 
         WGPUExtent3D textureWriteSize;
-        textureWriteSize.width = materialImages[layer].width;
-        textureWriteSize.height = materialImages[layer].height;
+        textureWriteSize.width = image.width;
+        textureWriteSize.height = image.height;
         textureWriteSize.depthOrArrayLayers = 1;
 
-        wgpuQueueWriteTexture(queue, &textureDestination, materialImages[layer].pixels, materialImages[layer].width * materialImages[layer].height * 4, &textureDataLayout, &textureWriteSize);
+        wgpuQueueWriteTexture(queue, &textureDestination, image.pixels, image.width * image.height * 4, &textureDataLayout, &textureWriteSize);
     }
 
     WGPUTextureDescriptor normalTextureDescriptor;
@@ -861,6 +893,10 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
 
     for (std::uint32_t layer = 0; layer < normalImages.size(); ++layer)
     {
+        auto & image = normalImages[layer];
+
+        std::vector<std::uint32_t> scaledPixels = rescaleImage(image, maxNormalTextureSize);
+
         WGPUImageCopyTexture textureDestination;
         textureDestination.nextInChain = nullptr;
         textureDestination.texture = normalTexture_;
@@ -871,15 +907,15 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
         WGPUTextureDataLayout textureDataLayout;
         textureDataLayout.nextInChain = nullptr;
         textureDataLayout.offset = 0;
-        textureDataLayout.bytesPerRow = normalImages[layer].width * 4;
-        textureDataLayout.rowsPerImage = normalImages[layer].height;
+        textureDataLayout.bytesPerRow = image.width * 4;
+        textureDataLayout.rowsPerImage = image.height;
 
         WGPUExtent3D textureWriteSize;
-        textureWriteSize.width = normalImages[layer].width;
-        textureWriteSize.height = normalImages[layer].height;
+        textureWriteSize.width = image.width;
+        textureWriteSize.height = image.height;
         textureWriteSize.depthOrArrayLayers = 1;
 
-        wgpuQueueWriteTexture(queue, &textureDestination, normalImages[layer].pixels, normalImages[layer].width * normalImages[layer].height * 4, &textureDataLayout, &textureWriteSize);
+        wgpuQueueWriteTexture(queue, &textureDestination, image.pixels, image.width * image.height * 4, &textureDataLayout, &textureWriteSize);
     }
 
     WGPUTextureDescriptor environmentTextureDescriptor;
