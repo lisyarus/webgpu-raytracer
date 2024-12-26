@@ -147,7 +147,6 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 				+ vndfTransmissionProbability * vndfTransmissionWeight
 				+ directLightSamplingProbability * lightSamplingWeight;
 
-
 			// totalMISProbability = 1.0 / (4.0 * PI);
 			// newRay.direction = uniformSphere(randomState);
 
@@ -195,7 +194,7 @@ fn computeMain(@builtin(global_invocation_id) id: vec3<u32>) {
 	let cameraRay = computeCameraRay(camera.position, camera.viewProjectionInverseMatrix, screenPosition * vec2f(1.0, -1.0));
 
 	// No idea where negative values come from :(
-	let color = max(vec3f(0.0), raytraceMonteCarlo(cameraRay, &randomState));
+	let color = clamp(raytraceMonteCarlo(cameraRay, &randomState), vec3f(0.0), vec3f(10.0));
 	let alpha = 1.0 / (f32(camera.frameID) + 1.0);
 
 	if (id.x < camera.screenSize.x && id.y < camera.screenSize.y) {
