@@ -10,6 +10,8 @@ There are a bunch of test scenes in the [test_scenes](test_scenes) directory.
 
 It uses wgpu-native WebGPU implementation, and SDL2 to create a window to render to.
 
+This project is licensed under the terms of the MIT license.
+
 # Usage
 
 To run the program, first build it (see instructions below), then run it with a single glTF scene in the command arguments. For example, if you've built the project in a `build` directory inside the project root, then you can run `./webgpu-raytracer ../test_scenes/bunny/bunny_100k.gltf`.
