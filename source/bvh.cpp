@@ -1,4 +1,5 @@
 #include <webgpu-raytracer/bvh.hpp>
+#include <webgpu-raytracer/timer.hpp>
 
 #include <algorithm>
 #include <iostream>
@@ -110,6 +111,8 @@ namespace
 
 BVH buildBVH(std::vector<AABB> const & triangleAABB)
 {
+    Timer timer;
+
     BVH result;
     result.triangleIDs.resize(triangleAABB.size());
     for (std::uint32_t i = 0; i < result.triangleIDs.size(); ++i)
@@ -120,7 +123,7 @@ BVH buildBVH(std::vector<AABB> const & triangleAABB)
     result.nodes.emplace_back();
     buildNode(result, triangleAABB, 0, result.triangleIDs.begin(), result.triangleIDs.end(), 0, maxDepth);
 
-    std::cout << "BVH max depth: " << maxDepth << std::endl;
+    std::cout << "Built BVH for " << triangleAABB.size() << " triangles in " << timer.duration() << " seconds, max depth: " << maxDepth << std::endl;
 
     return result;
 }

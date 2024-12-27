@@ -4,6 +4,7 @@
 #include <webgpu-raytracer/camera.hpp>
 #include <webgpu-raytracer/shader_registry.hpp>
 #include <webgpu-raytracer/renderer.hpp>
+#include <webgpu-raytracer/timer.hpp>
 #include <stb_image.h>
 
 #include <iostream>
@@ -29,8 +30,12 @@ int main(int argc, char ** argv) try
     Renderer renderer(application.device(), application.queue(), application.surfaceFormat(), shaderRegistry);
 
     auto assetPath = std::filesystem::path(argv[1]);
-    auto asset = glTF::load(assetPath);
-    std::cout << "Loaded asset " << assetPath << '\n';
+    glTF::Asset asset;
+    {
+        Timer timer;
+        asset = glTF::load(assetPath);
+        std::cout << "Loaded asset " << assetPath << " in " << timer.duration() << " seconds" << std::endl;
+    }
 
     HDRIData environmentMap
     {
@@ -44,6 +49,7 @@ int main(int argc, char ** argv) try
         if (std::filesystem::exists(argv[2]))
         {
             // Try to parse an HDRI
+            Timer timer;
             int width, height, channels;
             auto pixels = stbi_loadf(argv[2], &width, &height, &channels, 4);
             if (pixels)
@@ -53,7 +59,7 @@ int main(int argc, char ** argv) try
                 environmentMap.pixels.resize(width * height * 4);
                 std::copy(pixels, pixels + width * height * 4, environmentMap.pixels.data());
                 stbi_image_free(pixels);
-                std::cout << "Loaded HDRI from " << argv[2] << " (max intensity: " << *std::max_element(environmentMap.pixels.begin(), environmentMap.pixels.end()) << ")" << std::endl;
+                std::cout << "Loaded HDRI from " << argv[2] << " in " << timer.duration() << " seconds, max intensity: " << *std::max_element(environmentMap.pixels.begin(), environmentMap.pixels.end()) << ")" << std::endl;
             }
             else
             {
@@ -88,8 +94,10 @@ int main(int argc, char ** argv) try
         camera = Camera(asset, asset.nodes[cameraNodes.front()]);
     camera.setAspectRatio(application.width() * 1.f / application.height());
 
+    Timer sceneDataTimer;
     SceneData sceneData(asset, environmentMap, application.device(), application.queue(),
         renderer.geometryBindGroupLayout(), renderer.materialBindGroupLayout());
+    std::cout << "Loaded scene to GPU in " << sceneDataTimer.duration() << " seconds" << std::endl;
 
     std::unordered_set<SDL_Scancode> keysDown;
 

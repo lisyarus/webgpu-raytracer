@@ -4,6 +4,7 @@
 #include <webgpu-raytracer/geometry_bind_group.hpp>
 #include <webgpu-raytracer/bvh.hpp>
 #include <webgpu-raytracer/alias.hpp>
+#include <webgpu-raytracer/timer.hpp>
 #include <stb_image.h>
 #include <mikktspace.h>
 
