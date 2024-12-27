@@ -7,7 +7,7 @@
 struct ComposePipeline
 {
     ComposePipeline(WGPUDevice device, ShaderRegistry & shaderRegistry, WGPUTextureFormat surfaceFormat,
-        WGPUBindGroupLayout accumulationBindGroupLayout);
+        WGPUBindGroupLayout accumulationBindGroupLayout, WGPUBindGroupLayout composeUniformsBindGroupLayout);
     ~ComposePipeline();
 
     WGPURenderPipeline renderPipeline() const { return renderPipeline_; }
@@ -17,4 +17,5 @@ private:
     WGPURenderPipeline renderPipeline_;
 };
 
-void renderCompose(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextureView, WGPURenderPipeline composePipeline, WGPUBindGroup accumulationBindGroup);
+void renderCompose(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextureView, WGPURenderPipeline composePipeline,
+    WGPUBindGroup accumulationBindGroup, WGPUBindGroup composeUniformsBindGroup);

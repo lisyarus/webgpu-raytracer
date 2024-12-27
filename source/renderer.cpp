@@ -1,5 +1,6 @@
 #include <webgpu-raytracer/renderer.hpp>
 #include <webgpu-raytracer/camera_bind_group.hpp>
+#include <webgpu-raytracer/compose_uniforms_bind_group.hpp>
 #include <webgpu-raytracer/material_bind_group.hpp>
 #include <webgpu-raytracer/geometry_bind_group.hpp>
 #include <webgpu-raytracer/accumulation_bind_group.hpp>
@@ -23,7 +24,7 @@ struct Renderer::Impl
 
     void resetAccumulationBuffer();
 
-    void renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData);
+    void renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData, float exposure);
 
 private:
     WGPUDevice device_;
@@ -39,6 +40,7 @@ private:
     WGPUBindGroup accumulationSampleBindGroup_ = nullptr;
 
     CameraBindGroup camera_;
+    ComposeUniformsBindGroup composeUniforms_;
 
     WGPUBindGroupLayout geometryBindGroupLayout_;
     WGPUBindGroupLayout materialBindGroupLayout_;
@@ -66,6 +68,7 @@ Renderer::Impl::Impl(WGPUDevice device, WGPUQueue queue, WGPUTextureFormat surfa
     , queue_(queue)
     , surfaceFormat_(surfaceFormat)
     , camera_(device)
+    , composeUniforms_(device)
     , geometryBindGroupLayout_(createGeometryBindGroupLayout(device))
     , materialBindGroupLayout_(createMaterialBindGroupLayout(device))
     , accumulationStorageBindGroupLayout_(createAccumulationStorageBindGroupLayout(device, accumulationTextureFormat))
@@ -73,7 +76,7 @@ Renderer::Impl::Impl(WGPUDevice device, WGPUQueue queue, WGPUTextureFormat surfa
     , previewPipeline_(device, shaderRegistry, surfaceFormat, camera_.bindGroupLayout(), materialBindGroupLayout_)
     , raytraceFirstHitPipeline_(device, shaderRegistry, camera_.bindGroupLayout(), geometryBindGroupLayout_, materialBindGroupLayout_, accumulationStorageBindGroupLayout_)
     , raytraceMonteCarloPipeline_(device, shaderRegistry, camera_.bindGroupLayout(), geometryBindGroupLayout_, materialBindGroupLayout_, accumulationStorageBindGroupLayout_)
-    , composePipeline_(device, shaderRegistry, surfaceFormat, accumulationSampleBindGroupLayout_)
+    , composePipeline_(device, shaderRegistry, surfaceFormat, accumulationSampleBindGroupLayout_, composeUniforms_.bindGroupLayout())
     , profiler_(device)
 {}
 
@@ -187,11 +190,12 @@ namespace
 
 }
 
-void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData)
+void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData, float exposure)
 {
     glm::uvec2 const screenSize{wgpuTextureGetWidth(surfaceTexture), wgpuTextureGetHeight(surfaceTexture)};
 
     camera_.update(queue_, camera, screenSize, frameID_, globalFrameID_);
+    composeUniforms_.update(queue_, exposure);
 
     WGPUCommandEncoderDescriptor commandEncoderDescriptor;
     commandEncoderDescriptor.nextInChain = nullptr;
@@ -261,7 +265,7 @@ void Renderer::Impl::renderFrame(WGPUTexture surfaceTexture, Camera const & came
             frameProfiler.timestamp("raytrace");
         }
 
-        renderCompose(commandEncoder, surfaceTextureView, composePipeline_.renderPipeline(), accumulationSampleBindGroup_);
+        renderCompose(commandEncoder, surfaceTextureView, composePipeline_.renderPipeline(), accumulationSampleBindGroup_, composeUniforms_.bindGroup());
         frameProfiler.timestamp("compose");
 
         needClearAccumulationTexture_ = false;
@@ -315,7 +319,7 @@ void Renderer::setRenderMode(Mode mode)
     pimpl_->setRenderMode(mode);
 }
 
-void Renderer::renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData)
+void Renderer::renderFrame(WGPUTexture surfaceTexture, Camera const & camera, SceneData const & sceneData, float exposure)
 {
-    pimpl_->renderFrame(surfaceTexture, camera, sceneData);
+    pimpl_->renderFrame(surfaceTexture, camera, sceneData, exposure);
 }

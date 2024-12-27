@@ -1,6 +1,12 @@
 use tonemap.wgsl;
 
+struct ComposeUniforms
+{
+	exposure : f32,
+}
+
 @group(0) @binding(0) var accumulationTexture : texture_2d<f32>;
+@group(1) @binding(0) var<uniform> composeUniforms : ComposeUniforms;
 
 @vertex
 fn vertexMain(@builtin(vertex_index) index : u32) -> @builtin(position) vec4f {
@@ -19,5 +25,5 @@ fn vertexMain(@builtin(vertex_index) index : u32) -> @builtin(position) vec4f {
 @fragment
 fn fragmentMain(@builtin(position) fragmentPosition : vec4f) -> @location(0) vec4f {
 	let linearColor = textureLoad(accumulationTexture, vec2i(fragmentPosition.xy), 0).rgb;
-	return vec4f(gammaCorrect(tonemap(linearColor)), 1.0);
+	return vec4f(gammaCorrect(tonemap(linearColor * composeUniforms.exposure)), 1.0);
 }

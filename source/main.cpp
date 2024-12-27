@@ -96,6 +96,8 @@ int main(int argc, char ** argv) try
     int frameId = 0;
     double time = 0.0;
 
+    float exposure = 1.f;
+
     bool leftMouseButtonDown = false;
 
     auto lastFrameStart = std::chrono::high_resolution_clock::now();
@@ -167,6 +169,12 @@ int main(int argc, char ** argv) try
 
         time += dt;
 
+        if (keysDown.contains(SDL_SCANCODE_UP))
+            exposure *= std::pow(2.f, dt);
+
+        if (keysDown.contains(SDL_SCANCODE_DOWN))
+            exposure /= std::pow(2.f, dt);
+
         {
             float rotationSpeed = 1.f;
             float movementSpeed = 10.f; // TODO: select based on scene size
@@ -220,7 +228,7 @@ int main(int argc, char ** argv) try
         if (cameraMoved || screenResized)
             renderer.setRenderMode(Renderer::Mode::Preview);
 
-        renderer.renderFrame(surfaceTexture, camera, sceneData);
+        renderer.renderFrame(surfaceTexture, camera, sceneData, exposure);
         application.present();
 
         wgpuTextureRelease(surfaceTexture);

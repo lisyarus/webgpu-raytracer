@@ -24,6 +24,7 @@ Here are all the controls:
 * `[W][A][S][D]`: move the camera
 * `[LSHIFT][LCTRL]`: speed up / slow down camera controls
 * `[SPACE]`: activate raytracing
+* `[UP][DOWN]`: change exposure
 
 If the camera changes in raytracing mode, the raytracing result is discarded and the preview mode is activated again (i.e. there's no temporal reprojection in this case).
 

@@ -1,17 +1,18 @@
 #include <webgpu-raytracer/compose_pipeline.hpp>
 
 ComposePipeline::ComposePipeline(WGPUDevice device, ShaderRegistry & shaderRegistry, WGPUTextureFormat surfaceFormat,
-    WGPUBindGroupLayout accumulationBindGroupLayout)
+    WGPUBindGroupLayout accumulationBindGroupLayout, WGPUBindGroupLayout composeUniformsBindGroupLayout)
 {
-    WGPUBindGroupLayout bindGroupLayouts[1]
+    WGPUBindGroupLayout bindGroupLayouts[2]
     {
         accumulationBindGroupLayout,
+        composeUniformsBindGroupLayout,
     };
 
     WGPUPipelineLayoutDescriptor pipelineLayoutDescriptor;
     pipelineLayoutDescriptor.nextInChain = nullptr;
     pipelineLayoutDescriptor.label = nullptr;
-    pipelineLayoutDescriptor.bindGroupLayoutCount = 1;
+    pipelineLayoutDescriptor.bindGroupLayoutCount = 2;
     pipelineLayoutDescriptor.bindGroupLayouts = bindGroupLayouts;
 
     pipelineLayout_ = wgpuDeviceCreatePipelineLayout(device, &pipelineLayoutDescriptor);
@@ -65,7 +66,8 @@ ComposePipeline::~ComposePipeline()
     wgpuPipelineLayoutRelease(pipelineLayout_);
 }
 
-void renderCompose(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextureView, WGPURenderPipeline composePipeline, WGPUBindGroup accumulationBindGroup)
+void renderCompose(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextureView, WGPURenderPipeline composePipeline,
+    WGPUBindGroup accumulationBindGroup, WGPUBindGroup composeUniformsBindGroup)
 {
     WGPURenderPassColorAttachment colorAttachment;
     colorAttachment.nextInChain = nullptr;
@@ -87,6 +89,7 @@ void renderCompose(WGPUCommandEncoder commandEncoder, WGPUTextureView colorTextu
     WGPURenderPassEncoder renderPassEncoder = wgpuCommandEncoderBeginRenderPass(commandEncoder, &renderPassDescriptor);
 
     wgpuRenderPassEncoderSetBindGroup(renderPassEncoder, 0, accumulationBindGroup, 0, nullptr);
+    wgpuRenderPassEncoderSetBindGroup(renderPassEncoder, 1, composeUniformsBindGroup, 0, nullptr);
     wgpuRenderPassEncoderSetPipeline(renderPassEncoder, composePipeline);
     wgpuRenderPassEncoderDraw(renderPassEncoder, 3, 1, 0, 0);
     wgpuRenderPassEncoderEnd(renderPassEncoder);
