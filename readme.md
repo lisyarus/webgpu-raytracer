@@ -65,6 +65,7 @@ Don't forget to check out submodules:
 * [glm](https://github.com/g-truc/glm) for vector & matrix maths
 * [rapidjson](https://github.com/Tencent/rapidjson) for parsing glTF scenes
 * [stb](https://github.com/nothings/stb) for loading images
+* [MikkTSpace](https://github.com/mmikk/MikkTSpace) for reconstructing mesh tangents (needed for normal mapping)
 
 You can do this at clone time, using `git clone <repo-url> --recurse-submodules`. Add `--shallow-submodules` to prevent loading the whole commit history of those submodules. Otherwise, you can checkout submodules at any time after cloning the repo with `git submodule update --init --recursive`.
 
