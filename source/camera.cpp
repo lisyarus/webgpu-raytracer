@@ -82,6 +82,11 @@ void Camera::moveRight(float distance)
     position_ += distance * axisX_;
 }
 
+void Camera::moveUp(float distance)
+{
+    position_ += distance * axisY_;
+}
+
 glm::mat4 Camera::viewProjectionMatrix() const
 {
     auto projection = glToVkProjection(glm::perspective(fovY_, aspectRatio_, zNear_, zFar_));

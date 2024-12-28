@@ -231,6 +231,17 @@ int main(int argc, char ** argv) try
                 camera.moveRight(  movementSpeed * dt);
                 cameraMoved = true;
             }
+
+            if (keysDown.contains(SDL_SCANCODE_Z))
+            {
+                camera.moveUp(- movementSpeed * dt);
+                cameraMoved = true;
+            }
+            if (keysDown.contains(SDL_SCANCODE_X))
+            {
+                camera.moveUp(  movementSpeed * dt);
+                cameraMoved = true;
+            }
         }
 
         if (cameraMoved || screenResized)

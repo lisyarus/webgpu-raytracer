@@ -23,7 +23,7 @@ By default, a simple preview of the scene is rendered. Press `[SPACE]` to activa
 Here are all the controls:
 * Mouse (while pressing left mouse button): rotate the camera
 * `[Q][E]`: roll the camera
-* `[W][A][S][D]`: move the camera
+* `[W][A][S][D][Z][X]`: move the camera
 * `[LSHIFT][LCTRL]`: speed up / slow down camera controls
 * `[SPACE]`: activate raytracing
 * `[UP][DOWN]`: change exposure
