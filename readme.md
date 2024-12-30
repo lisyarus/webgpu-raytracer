@@ -6,6 +6,8 @@
 
 This is a GPU "software" raytracer (i.e. using manual ray-scene intersections and not RTX) written using the WebGPU API. It expects a single glTF scene as input. It supports flat-colored and textured materials with albedo, normal, and material maps. It doesn't support refraction (yet).
 
+Note that if the input model has UVs, they should be non-degenerate, as they are used to reconstruct tangents used for normal mapping (even if the model doesn't have a normal map).
+
 There are a bunch of test scenes in the [test_scenes](test_scenes) directory.
 
 It uses wgpu-native WebGPU implementation, and SDL2 to create a window to render to.
@@ -16,7 +18,7 @@ This project is licensed under the terms of the MIT license.
 
 To run the program, first build it (see instructions below), then run it with a single glTF scene in the command arguments. For example, if you've built the project in a `build` directory inside the project root, then you can run `./webgpu-raytracer ../test_scenes/bunny/bunny_100k.gltf`.
 
-An optional second command-line parameter defines the background of the scene. It can either be an RGB comma-separated triple like `1,0.5,0.25`, or path to an HDRI environment map. The [env_maps](env_maps) directory contains some sample enrivonment maps.
+An optional second command-line parameter defines the background of the scene. It can either be an RGB comma-separated triple like `1,0.5,0.25`, or path to an HDRI environment map. The [env_maps](env_maps) directory contains some sample environment maps.
 
 By default, a simple preview of the scene is rendered. Press `[SPACE]` to activate raytracing.
 
@@ -35,7 +37,7 @@ If the camera changes in raytracing mode, the raytracing result is discarded and
 * The raytracer uses standard Monte-Carlo integration with multiple importance sampling, see [the corresponding shader](shaders/raytrace_monte_carlo.wgsl).
 * Fast ray-scene intersections are done using a BVH built with a simple surface-area heuristic at program start (see [Jacco Bikker's amazing article series](https://jacco.ompf2.com/2022/04/13/how-to-build-a-bvh-part-1-basics/) about this).
 * Raytracing uses multiple importance sampling (MIS) between several direction sampling strategies: cosine-weighted (good for diffuse materials), direct light sampling (good for rough materials), VNDF sampling (good for smooth materials), and transmission sampling (good for transparent materials). See also [my article](https://lisyarus.github.io/blog/posts/multiple-importance-sampling.html) explaining how MIS works.
-* The material used is the standard glTF Cook-Torrance GGX with a thin-walled transmission as described by [KHR_materials_transmission](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_transmission/README.md).
+* The material used is the standard glTF Cook-Torrance GGX supporting albedo, normal & material maps, with a thin-walled transmission as described by [KHR_materials_transmission](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_transmission/README.md).
 * [VNDF](https://gpuopen.com/download/publications/Bounded_VNDF_Sampling_for_Smith-GGX_Reflections.pdf) normals distribution is used to improve convergence.
 * Refractive materials are not supported. I tried to incorporate refractions into VNDF sampling but never managed to figure it out; this work resides in a separate [`vndf-refraction-wip`](https://github.com/lisyarus/webgpu-raytracer/tree/vndf-refraction-wip) branch.
 * NB: the `use camera.wgsl;` construct in the shaders is not standard WGSL, - instead, a rudimentary [shader importing mechanism](source/shader_registry.cpp) is implemented in this project.

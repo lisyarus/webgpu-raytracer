@@ -152,12 +152,11 @@ namespace
 
     void fillDefaultTexcoords(std::vector<Vertex> & vertices, std::uint32_t baseVertex, std::uint32_t count)
     {
-        auto vertexIt = vertices.begin() + baseVertex;
-        for (std::uint32_t i = 0; i < count; ++i)
-        {
+        auto vertexBegin = vertices.begin() + baseVertex;
+        auto vertexEnd = vertexBegin + count;
+
+        for (auto vertexIt = vertexBegin; vertexIt != vertexEnd; ++vertexIt)
             vertexIt->attributes.texcoords = {0.5f, 0.5f};
-            ++vertexIt;
-        }
     }
 
     void readTexcoords(glTF::Asset const & asset, glTF::Accessor const & texcoordAccessor, std::vector<Vertex> & vertices, std::uint32_t baseVertex)
@@ -205,6 +204,22 @@ namespace
                 ++vertexIt;
             }
             break;
+        }
+    }
+
+    void fillDefaultTangents(std::vector<Vertex> & vertices, std::uint32_t baseVertex, std::uint32_t count)
+    {
+        auto vertexBegin = vertices.begin() + baseVertex;
+        auto vertexEnd = vertexBegin + count;
+
+        for (auto vertexIt = vertexBegin; vertexIt != vertexEnd; ++vertexIt)
+        {
+            glm::vec3 tangent;
+            if (std::abs(vertexIt->attributes.normal.z) < 0.5f)
+                tangent = glm::cross(vertexIt->attributes.normal, glm::vec3(0.f, 0.f, 1.f));
+            else
+                tangent = glm::cross(vertexIt->attributes.normal, glm::vec3(1.f, 0.f, 0.f));
+            vertexIt->attributes.tangent = glm::vec4(glm::normalize(tangent), 1.f);
         }
     }
 
@@ -397,8 +412,10 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
             // Read tangents
             if (tangentAccessor)
                 readTangents(asset, *tangentAccessor, vertices, baseVertex);
-            else
+            else if (texcoordAccessor)
                 reconstructTangents(vertices, indices, baseVertex, baseIndex, positionAccessor->count, indexCount);
+            else
+                fillDefaultTangents(vertices, baseVertex, positionAccessor->count);
 
             std::uint32_t materialID = primitive.material ? 1 + *primitive.material : 0;
 
