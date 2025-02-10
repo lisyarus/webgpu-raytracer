@@ -50,13 +50,15 @@ fn fragmentMain(in : VertexOutput, @builtin(front_facing) front_facing : bool) -
 
 	let albedoSample = textureSampleLevel(albedoTexture, textureSampler, in.texcoord, material.textureLayers.x, 0.0);
 
-	if (albedoSample.a < 0.5) {
+	let alpha = albedoSample.a * material.baseColorFactorAndAlpha.a;
+
+	if (alpha < 0.5) {
 		discard;
 	}
 
-	let albedo = material.baseColorFactorAndTransmission.rgb * albedoSample.rgb;
+	let albedo = material.baseColorFactorAndAlpha.rgb * albedoSample.rgb;
 
-	let litColor = albedo * (0.5 + 0.5 * dot(normal, lightDirection)) + material.emissiveFactor.rgb;
+	let litColor = albedo * (0.5 + 0.5 * dot(normal, lightDirection)) + material.emissiveFactorAndTransmission.rgb;
 
 	let cameraDirection = normalize(camera.position - in.worldPosition);
 	let reflectedDirection = 2.0 * normal * dot(normal, cameraDirection) - cameraDirection;

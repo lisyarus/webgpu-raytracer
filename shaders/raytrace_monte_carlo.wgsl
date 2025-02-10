@@ -48,8 +48,10 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 
 			let albedoSample = textureSampleLevel(albedoTexture, textureSampler, texcoord, material.textureLayers.x, 0.0);
 
+			let alpha = albedoSample.a * material.baseColorFactorAndAlpha.a;
+
 			// TODO: better transparency
-			if (albedoSample.a < 0.5) {
+			if (alpha < 0.5) {
 				currentRay.origin = intersectionPoint + currentRay.direction * 1e-4;
 				continue;
 			}
@@ -57,11 +59,11 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 			let materialSample = textureSampleLevel(materialTexture, textureSampler, texcoord, material.textureLayers.y, 0.0);
 			let normalSample = textureSampleLevel(normalTexture, textureSampler, texcoord, material.textureLayers.z, 0.0);
 
-			let baseColor = material.baseColorFactorAndTransmission.rgb * albedoSample.rgb;
+			let baseColor = material.baseColorFactorAndAlpha.rgb * albedoSample.rgb;
 			let metallic = material.metallicRoughnessFactorAndIor.b * materialSample.b;
 			let roughness = max(0.05, material.metallicRoughnessFactorAndIor.g * materialSample.g);
 			var ior = material.metallicRoughnessFactorAndIor.a;
-			let transmission = material.baseColorFactorAndTransmission.a;
+			let transmission = material.emissiveFactorAndTransmission.a;
 
 			var geometryNormal = normalize(cross(intersection.vertices[1] - intersection.vertices[0], intersection.vertices[2] - intersection.vertices[0]));
 
@@ -150,7 +152,7 @@ fn raytraceMonteCarlo(ray : Ray, randomState : ptr<function, RandomState>) -> ve
 			// totalMISProbability = 1.0 / (4.0 * PI);
 			// newRay.direction = uniformSphere(randomState);
 
-			accumulatedColor += material.emissiveFactor.rgb * colorFactor;
+			accumulatedColor += material.emissiveFactorAndTransmission.rgb * colorFactor;
 
 			let ndotr = dot(shadingNormal, newRay.direction);
 

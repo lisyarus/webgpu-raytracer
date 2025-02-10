@@ -1,7 +1,7 @@
 struct Material
 {
-	baseColorFactorAndTransmission : vec4f,
+	baseColorFactorAndAlpha : vec4f,
 	metallicRoughnessFactorAndIor : vec4f,
-	emissiveFactor : vec4f,
+	emissiveFactorAndTransmission : vec4f,
 	textureLayers : vec4u,
 }

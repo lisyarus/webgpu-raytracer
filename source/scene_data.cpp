@@ -2,6 +2,7 @@
 #include <webgpu-raytracer/gltf_iterator.hpp>
 #include <webgpu-raytracer/material_bind_group.hpp>
 #include <webgpu-raytracer/geometry_bind_group.hpp>
+#include <webgpu-raytracer/color.hpp>
 #include <webgpu-raytracer/bvh.hpp>
 #include <webgpu-raytracer/alias.hpp>
 #include <webgpu-raytracer/timer.hpp>
@@ -35,10 +36,10 @@ namespace
 
     struct Material
     {
-        glm::vec4 baseColorFactorAndTransmission;
+        glm::vec4 baseColorFactorAndAlpha;
         // vec4(0, roughness, metallic, ior)
         glm::vec4 metallicRoughnessFactorAndIor;
-        glm::vec4 emissiveFactor;
+        glm::vec4 emissiveFactorAndTransmission;
         // uvec4(albedo, material, 0, 0)
         glm::uvec4 textureLayers;
     };
@@ -338,9 +339,9 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
 
     // Add default rough diffuse material
     materials.push_back({
-        .baseColorFactorAndTransmission = glm::vec4(1.f, 1.f, 1.f, 0.f),
+        .baseColorFactorAndAlpha = glm::vec4(1.f, 1.f, 1.f, 1.f),
         .metallicRoughnessFactorAndIor = glm::vec4(0.f, 1.f, 0.f, 1.5f),
-        .emissiveFactor = glm::vec4(0.f),
+        .emissiveFactorAndTransmission = glm::vec4(0.f),
     });
 
     for (auto const & node : asset.nodes)
@@ -464,9 +465,9 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
     for (auto const & materialIn : asset.materials)
     {
         auto & material = materials.emplace_back();
-        material.baseColorFactorAndTransmission = glm::vec4(glm::vec3(materialIn.baseColorFactor), materialIn.transmission);
+        material.baseColorFactorAndAlpha = materialIn.baseColorFactor;
         material.metallicRoughnessFactorAndIor = glm::vec4(0.f, materialIn.roughnessFactor, materialIn.metallicFactor, materialIn.ior);
-        material.emissiveFactor = glm::vec4(materialIn.emissiveFactor, 1.f);
+        material.emissiveFactorAndTransmission = glm::vec4(materialIn.emissiveFactor, materialIn.transmission);
         material.textureLayers = glm::uvec4(0);
 
         if (materialIn.baseColorTexture)
@@ -611,7 +612,7 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
     std::vector<std::uint32_t> emissiveTriangles;
     for (std::uint32_t i = 0; i < vertexAttributes.size(); i += 3)
     {
-        if (glm::lMaxNorm(glm::vec3(materials[vertexAttributes[i].materialID].emissiveFactor)) > 0.f)
+        if (glm::lMaxNorm(glm::vec3(materials[vertexAttributes[i].materialID].emissiveFactorAndTransmission)) > 0.f)
         {
             emissiveTriangles.push_back(i / 3);
         }
@@ -638,7 +639,7 @@ SceneData::SceneData(glTF::Asset const & asset, HDRIData const & environmentMap,
         auto materialID = vertexAttributes[3 * triangleID + 0].materialID;
 
         // Weight based on percieved luminance
-        float emissiveWeight = glm::dot(glm::vec3(0.299f, 0.587f, 0.114f), glm::vec3(materials[materialID].emissiveFactor));
+        float emissiveWeight = glm::dot(LUMINANCE_FACTORS, glm::vec3(materials[materialID].emissiveFactorAndTransmission));
 
         float weight = areaWeight * emissiveWeight;
 
