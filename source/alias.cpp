@@ -1,9 +1,14 @@
 #include <webgpu-raytracer/alias.hpp>
+#include <webgpu-raytracer/timer.hpp>
+
+#include <iostream>
 
 // Generate the data for sampling values in proportion to input probabilities
 // using the alias method
 std::vector<AliasRecord> generateAlias(std::vector<float> const & probabilities)
 {
+    Timer timer;
+
     struct IndexAndProbability
     {
         std::uint32_t index;
@@ -60,6 +65,8 @@ std::vector<AliasRecord> generateAlias(std::vector<float> const & probabilities)
             .alias = value.index,
         };
     }
+
+    std::cout << "Built alias table for " << probabilities.size() << " objects in " << timer.duration() << " seconds" << std::endl;
 
     return result;
 }
